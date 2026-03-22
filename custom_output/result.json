@@ -1,0 +1,13 @@
+{
+  "transcribe": "Hello",
+  "text": "Hello",
+  "segments": [],
+  "chunks": [],
+  "metadata": {
+    "audio_file": "/home/cburns/apps/insanely-fast-whisper-rocm/tests/data/silence.wav",
+    "total_time_seconds": 0.0,
+    "processing_time_seconds": 0.5,
+    "config_used": {},
+    "timestamp": "2026-03-22 17:15:22"
+  }
+}

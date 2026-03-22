@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM rocm/pytorch:rocm7.2_ubuntu22.04_py3.10_pytorch_release_2.9.1 AS base
+FROM rocm/pytorch:rocm7.2_ubuntu22.04_py3.13_pytorch_release_2.9.1 AS base
 
 LABEL org.opencontainers.image.source=https://github.com/burnsco/insanely-fast-whisper-rocm
 
