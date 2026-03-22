@@ -174,7 +174,10 @@ def test_initialize_pipeline_uses_sdpa_on_cuda(tmp_path: pathlib.Path) -> None:
         progress_group_size=4,
     )
 
-    with patch("torch.cuda.is_available", return_value=True):
+    with patch(
+        "insanely_fast_whisper_rocm.core.asr_backend.torch.cuda.is_available",
+        return_value=True,
+    ):
         backend = HuggingFaceBackend(config)
 
     mock_model = MagicMock()
@@ -182,7 +185,11 @@ def test_initialize_pipeline_uses_sdpa_on_cuda(tmp_path: pathlib.Path) -> None:
     mock_model.config = types.SimpleNamespace(lang_to_id=None, task_to_id=None)
 
     # Simulate non-ROCm (regular CUDA)
-    with patch("torch.version.hip", None, create=True):
+    with patch(
+        "insanely_fast_whisper_rocm.core.asr_backend.torch.version.hip",
+        None,
+        create=True,
+    ):
         with patch(
             "insanely_fast_whisper_rocm.core.asr_backend.AutoModelForSpeechSeq2Seq.from_pretrained",
             return_value=mock_model,
@@ -216,7 +223,10 @@ def test_initialize_pipeline_rocm_fallback_to_eager(tmp_path: pathlib.Path) -> N
         progress_group_size=4,
     )
 
-    with patch("torch.cuda.is_available", return_value=True):
+    with patch(
+        "insanely_fast_whisper_rocm.core.asr_backend.torch.cuda.is_available",
+        return_value=True,
+    ):
         backend = HuggingFaceBackend(config)
 
     mock_model = MagicMock()
@@ -247,7 +257,11 @@ def test_initialize_pipeline_rocm_fallback_to_eager(tmp_path: pathlib.Path) -> N
         return mock_model
 
     # Simulate ROCm
-    with patch("torch.version.hip", "5.7", create=True):
+    with patch(
+        "insanely_fast_whisper_rocm.core.asr_backend.torch.version.hip",
+        "5.7",
+        create=True,
+    ):
         with patch(
             "insanely_fast_whisper_rocm.core.asr_backend.AutoModelForSpeechSeq2Seq.from_pretrained",
             side_effect=from_pretrained_side_effect,

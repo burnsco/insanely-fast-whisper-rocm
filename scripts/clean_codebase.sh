@@ -40,9 +40,9 @@ if [[ ${#TARGETS[@]} -eq 0 ]]; then
 fi
 
 # Run Ruff to auto-fix lint issues
-pdm run ruff check "${TARGETS[@]}" --fix
+uv run ruff check "${TARGETS[@]}" --fix
 
 # Format code with Ruff
-pdm run ruff format "${TARGETS[@]}"
+uv run ruff format "${TARGETS[@]}"
 
 echo "Codebase cleaned: 'ruff check --fix' and 'ruff format' for: ${TARGETS[*]}"

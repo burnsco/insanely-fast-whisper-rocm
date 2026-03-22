@@ -4,16 +4,17 @@ from __future__ import annotations
 
 import os
 import tempfile
+from typing import Any
 
 try:  # pragma: no cover - optional dependency
-    import ffmpeg  # type: ignore
+    import ffmpeg
 except ModuleNotFoundError:  # pragma: no cover - handled gracefully
-    ffmpeg = None  # type: ignore
+    ffmpeg: Any | None = None
 
 try:  # pragma: no cover - optional dependency
-    from pydub import AudioSegment  # type: ignore
+    from pydub import AudioSegment
 except ModuleNotFoundError:  # pragma: no cover - handled gracefully
-    AudioSegment = None  # type: ignore
+    AudioSegment: Any | None = None
 
 from insanely_fast_whisper_rocm.utils.file_utils import cleanup_temp_files
 

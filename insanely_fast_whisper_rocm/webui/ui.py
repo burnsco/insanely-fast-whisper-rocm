@@ -5,14 +5,19 @@ including file upload, processing controls, and result display components.
 """
 
 import logging
+from typing import Literal
 
 import gradio as gr
 
 from insanely_fast_whisper_rocm.utils.constants import (
+    DEFAULT_ADJUST_GAPS,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DEVICE,
+    DEFAULT_GAP_PADDING,
     DEFAULT_LANGUAGE,
     DEFAULT_MODEL,
+    DEFAULT_NONSPEECH_SKIP,
+    DEFAULT_SUPPRESS_TS_TOKENS,
     DEFAULT_TIMESTAMP_TYPE,
     DEFAULT_TRANSCRIPTS_DIR,
     MAX_BATCH_SIZE,
@@ -27,6 +32,9 @@ from insanely_fast_whisper_rocm.webui.handlers import (
 
 # Configure logger
 logger = logging.getLogger("insanely_fast_whisper_rocm.webui.ui")
+
+TimestampType = Literal["chunk", "word"]
+TaskType = Literal["transcribe", "translate"]
 
 
 def _create_model_config_ui(
@@ -78,23 +86,73 @@ def _create_processing_options_ui() -> tuple[gr.Dropdown, gr.Slider]:
     return dtype, chunk_length
 
 
+def _parse_optional_float(value: str | float | int | None) -> float | None:
+    """Parse an optional numeric input from the WebUI.
+
+    Args:
+        value: Raw component value, which may be blank.
+
+    Returns:
+        The parsed float value, or ``None`` when left blank.
+
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    stripped = value.strip()
+    if not stripped:
+        return None
+    return float(stripped)
+
+
+def _toggle_stabilization_advanced(enabled: bool) -> dict[str, object]:
+    """Show or hide advanced stabilization controls.
+
+    Args:
+        enabled: Whether the advanced controls should be visible.
+
+    Returns:
+        A Gradio update payload that toggles visibility.
+    """
+    return gr.update(visible=enabled)
+
+
 def _create_stabilization_ui(
     *,
     default_stabilize: bool = False,
     default_demucs: bool = False,
     default_vad: bool = False,
     default_vad_threshold: float = 0.35,
-) -> tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Slider]:
+    default_suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS,
+    default_gap_padding: str = DEFAULT_GAP_PADDING,
+    default_adjust_gaps: bool = DEFAULT_ADJUST_GAPS,
+    default_nonspeech_skip: float | None = DEFAULT_NONSPEECH_SKIP,
+) -> tuple[
+    gr.Checkbox,
+    gr.Checkbox,
+    gr.Checkbox,
+    gr.Slider,
+    gr.Checkbox,
+    gr.Textbox,
+    gr.Checkbox,
+    gr.Textbox,
+    gr.Accordion,
+]:
     """Helper function to create timestamp stabilization UI components.
 
     Returns:
-        tuple[gr.Checkbox, gr.Checkbox, gr.Checkbox, gr.Slider]: Stabilize,
-        Demucs, VAD toggles and the VAD threshold slider.
+        The base stabilization controls, advanced controls, and the advanced
+        accordion container for visibility toggling.
     """
     with gr.Accordion("Timestamp Stabilization", open=False):
         stabilize = gr.Checkbox(
             value=default_stabilize,
             label="Enable word-level stabilization (--stabilize)",
+            info=(
+                "Recommended for movie/TV subtitle timing. Start with "
+                "Timestamp Type = word, VAD on (0.35), Demucs off."
+            ),
         )
         demucs = gr.Checkbox(
             value=default_demucs, label="Use Demucs noise reduction (--demucs)"
@@ -107,7 +165,50 @@ def _create_stabilization_ui(
             value=default_vad_threshold,
             label="VAD Threshold (--vad-threshold)",
         )
-    return stabilize, demucs, vad, vad_threshold
+        with gr.Accordion(
+            "Advanced Stabilization",
+            open=False,
+            visible=default_stabilize,
+        ) as advanced_stabilization:
+            suppress_ts_tokens = gr.Checkbox(
+                value=default_suppress_ts_tokens,
+                label="Suppress timestamp tokens in silence",
+                info="Helps reduce words appearing before they are actually spoken.",
+            )
+            gap_padding = gr.Textbox(
+                value=default_gap_padding,
+                label="Gap padding",
+                info="Padding passed to stable-ts to reduce early word starts.",
+            )
+            adjust_gaps = gr.Checkbox(
+                value=default_adjust_gaps,
+                label="Adjust segment gaps",
+                info="Tightens subtitle blocks around detected non-speech gaps.",
+            )
+            nonspeech_skip = gr.Textbox(
+                value=(
+                    ""
+                    if default_nonspeech_skip is None
+                    else str(default_nonspeech_skip)
+                ),
+                label="Skip non-speech spans >= (seconds)",
+                placeholder="Leave blank to disable",
+                info=(
+                    "Optional. Skip long non-speech regions entirely to reduce "
+                    "timing drift and hallucinations."
+                ),
+            )
+    return (
+        stabilize,
+        demucs,
+        vad,
+        vad_threshold,
+        suppress_ts_tokens,
+        gap_padding,
+        adjust_gaps,
+        nonspeech_skip,
+        advanced_stabilization,
+    )
 
 
 def _create_task_config_ui() -> tuple[gr.Radio, gr.Textbox, gr.Radio]:
@@ -122,6 +223,10 @@ def _create_task_config_ui() -> tuple[gr.Radio, gr.Textbox, gr.Radio]:
             choices=["chunk", "word"],
             label="Timestamp Type",
             value=DEFAULT_TIMESTAMP_TYPE,
+            info=(
+                "For movie/TV subtitle timing, 'word' works best with "
+                "stabilization enabled."
+            ),
         )
         language = gr.Textbox(
             value=DEFAULT_LANGUAGE,
@@ -160,9 +265,9 @@ def _process_transcription_request_wrapper(
     model_name: str,
     device: str,
     batch_size: int,
-    timestamp_type: str,
+    timestamp_type: TimestampType,
     language: str,
-    task: str,
+    task: TaskType,
     dtype: str,
     whisper_chunk_length: int,
     # Stabilization params
@@ -170,6 +275,10 @@ def _process_transcription_request_wrapper(
     demucs: bool,
     vad: bool,
     vad_threshold: float,
+    suppress_ts_tokens: bool,
+    gap_padding: str,
+    adjust_gaps: bool,
+    nonspeech_skip: str,
     save_transcriptions: bool,
     temp_uploads_dir: str,
     progress: gr.Progress | None = None,
@@ -202,6 +311,10 @@ def _process_transcription_request_wrapper(
     transcription_cfg.demucs = demucs
     transcription_cfg.vad = vad
     transcription_cfg.vad_threshold = vad_threshold
+    transcription_cfg.suppress_ts_tokens = suppress_ts_tokens
+    transcription_cfg.gap_padding = gap_padding
+    transcription_cfg.adjust_gaps = adjust_gaps
+    transcription_cfg.nonspeech_skip = _parse_optional_float(nonspeech_skip)
     return process_transcription_request(
         audio_paths=audio_paths,
         transcription_config=transcription_cfg,
@@ -217,6 +330,10 @@ def create_ui_components(
     default_demucs: bool = False,
     default_vad: bool = False,
     default_vad_threshold: float = 0.35,
+    default_suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS,
+    default_gap_padding: str = DEFAULT_GAP_PADDING,
+    default_adjust_gaps: bool = DEFAULT_ADJUST_GAPS,
+    default_nonspeech_skip: float | None = DEFAULT_NONSPEECH_SKIP,
 ) -> gr.Blocks:  # pylint: disable=too-many-locals
     """Create and return Gradio UI components with all parameters.
 
@@ -247,13 +364,25 @@ def create_ui_components(
                 dtype, chunk_length = _create_processing_options_ui()
 
                 # Timestamp stabilization options
-                stabilize_opt, demucs_opt, vad_opt, vad_threshold_opt = (
-                    _create_stabilization_ui(
-                        default_stabilize=default_stabilize,
-                        default_demucs=default_demucs,
-                        default_vad=default_vad,
-                        default_vad_threshold=default_vad_threshold,
-                    )
+                (
+                    stabilize_opt,
+                    demucs_opt,
+                    vad_opt,
+                    vad_threshold_opt,
+                    suppress_ts_tokens_opt,
+                    gap_padding_opt,
+                    adjust_gaps_opt,
+                    nonspeech_skip_opt,
+                    advanced_stabilization,
+                ) = _create_stabilization_ui(
+                    default_stabilize=default_stabilize,
+                    default_demucs=default_demucs,
+                    default_vad=default_vad,
+                    default_vad_threshold=default_vad_threshold,
+                    default_suppress_ts_tokens=default_suppress_ts_tokens,
+                    default_gap_padding=default_gap_padding,
+                    default_adjust_gaps=default_adjust_gaps,
+                    default_nonspeech_skip=default_nonspeech_skip,
                 )
 
                 # Task configuration
@@ -295,6 +424,11 @@ def create_ui_components(
                 )
 
         # Event handling
+        stabilize_opt.change(
+            fn=_toggle_stabilization_advanced,
+            inputs=[stabilize_opt],
+            outputs=[advanced_stabilization],
+        )
         submit_btn.click(
             fn=_process_transcription_request_wrapper,
             inputs=[
@@ -312,6 +446,10 @@ def create_ui_components(
                 demucs_opt,
                 vad_opt,
                 vad_threshold_opt,
+                suppress_ts_tokens_opt,
+                gap_padding_opt,
+                adjust_gaps_opt,
+                nonspeech_skip_opt,
                 save_transcriptions,
                 temp_uploads_dir,
             ],

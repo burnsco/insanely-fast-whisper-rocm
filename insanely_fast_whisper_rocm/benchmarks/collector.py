@@ -26,9 +26,9 @@ from insanely_fast_whisper_rocm.utils.constants import APP_TIMEZONE
 logger = logging.getLogger(__name__)
 
 try:  # pragma: no cover - optional dependency
-    import pyamdgpuinfo  # type: ignore
+    import pyamdgpuinfo
 except ImportError:  # pragma: no cover - optional dependency
-    pyamdgpuinfo = None  # type: ignore
+    pyamdgpuinfo: Any | None = None
 
 
 class BenchmarkCollector:

@@ -1,9 +1,12 @@
 """Pytest configuration and fixtures."""
 
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
 import time
+import types
 import warnings
 from collections.abc import Generator
 from pathlib import Path
@@ -19,6 +22,70 @@ def pytest_configure(config: pytest.Config) -> None:  # noqa: ARG001
         message=r"websockets\.legacy is deprecated;.*",
         category=DeprecationWarning,
     )
+
+
+def _env_flag_enabled(name: str) -> bool:
+    """Return whether the named environment flag is enabled.
+
+    Args:
+        name: Environment variable to interpret as a boolean toggle.
+
+    Returns:
+        ``True`` when the variable is set to ``1``, else ``False``.
+    """
+    return os.getenv(name, "0") == "1"
+
+
+def _real_media_path() -> Path:
+    """Return the configured real media path used by smoke tests.
+
+    Returns:
+        Path to the opt-in real media test file.
+    """
+    return Path(
+        os.getenv(
+            "TEST_REAL_MEDIA_PATH",
+            "test_media/Silent Witness S14E01.mkv",
+        )
+    )
+
+
+def _load_torch() -> types.ModuleType:
+    """Import and return torch when available.
+
+    Returns:
+        The imported torch module.
+    """
+    import torch
+
+    return torch
+
+
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Apply global skip rules for optional GPU and real-media tests.
+
+    Args:
+        item: The pytest test item about to run.
+    """
+    if "gpu" in item.keywords:
+        if not _env_flag_enabled("RUN_GPU_TESTS"):
+            pytest.skip("GPU tests are disabled. Set RUN_GPU_TESTS=1 to enable.")
+        try:
+            torch = _load_torch()
+        except ModuleNotFoundError:
+            pytest.skip("Torch is not installed in this test environment.")
+
+        if not torch.cuda.is_available():
+            pytest.skip("ROCm GPU runtime not available in this test environment.")
+
+    if "real_media" in item.keywords:
+        if not _env_flag_enabled("RUN_REAL_MEDIA_TESTS"):
+            pytest.skip(
+                "Real media tests are disabled. Set RUN_REAL_MEDIA_TESTS=1 to enable."
+            )
+        media_path = _real_media_path()
+        if not media_path.exists():
+            pytest.skip(f"Real media file not found: {media_path}")
 
 
 @pytest.fixture(scope="session")
@@ -44,6 +111,30 @@ def temp_upload_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
         Path: Newly created temporary directory path for uploads.
     """
     return tmp_path_factory.mktemp("uploads")
+
+
+@pytest.fixture(scope="session")
+def sample_video_path() -> Path:
+    """Return the committed sample video fixture used by smoke tests.
+
+    Returns:
+        Path to ``tests/data/sample.mp4``.
+
+    """
+    video_path = Path(__file__).resolve().parent / "data" / "sample.mp4"
+    if not video_path.exists():
+        pytest.skip(f"Sample video fixture missing: {video_path}")
+    return video_path
+
+
+@pytest.fixture(scope="session")
+def real_media_path() -> Path:
+    """Return the configured opt-in real media file path.
+
+    Returns:
+        Path to the real media file selected by ``TEST_REAL_MEDIA_PATH``.
+    """
+    return _real_media_path()
 
 
 @pytest.fixture(scope="session")

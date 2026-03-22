@@ -12,7 +12,7 @@ import time
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, cast
 
 import torch
 from transformers import (
@@ -54,13 +54,15 @@ class HuggingFaceBackendConfig:
 class ASRBackend(ABC):  # pylint: disable=too-few-public-methods
     """Abstract base class for ASR backends."""
 
+    config: HuggingFaceBackendConfig
+
     @abstractmethod
     def process_audio(
         self,
         audio_file_path: str,
         language: str | None,
-        task: str,
-        return_timestamps_value: bool | str,
+        task: Literal["transcribe", "translate"],
+        return_timestamps_value: Literal["word"] | bool,
         # Potentially other common config options can go here
         progress_cb: ProgressCallback | None = None,
         cancellation_token: CancellationToken | None = None,
@@ -80,7 +82,7 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
         """
         self.config = config
         self.effective_device = convert_device_string(self.config.device)
-        self.asr_pipe = None  # Lazy initialization
+        self.asr_pipe: Any | None = None  # Lazy initialization
 
         self._validate_device()
 
@@ -136,7 +138,7 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 hip_version,
             )
 
-            model_load_kwargs = {
+            model_load_kwargs: dict[str, Any] = {
                 "dtype": (
                     torch.float16 if self.config.dtype == "float16" else torch.float32
                 ),
@@ -307,8 +309,8 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
         self,
         audio_file_path: str,
         language: str | None,
-        task: str,
-        return_timestamps_value: bool | str,
+        task: Literal["transcribe", "translate"],
+        return_timestamps_value: Literal["word"] | bool,
         progress_cb: ProgressCallback | None = None,
         cancellation_token: CancellationToken | None = None,
     ) -> dict[str, Any]:
@@ -345,6 +347,7 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
             self._initialize_pipeline(progress_cb=cb)
             if cancellation_token is not None:
                 cancellation_token.raise_if_cancelled()
+        asr_pipe = cast(Any, self.asr_pipe)
 
         start_time = time.perf_counter()
 
@@ -402,7 +405,7 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 _return_timestamps_value = False
 
         if _return_timestamps_value:
-            gen_cfg = getattr(self.asr_pipe.model, "generation_config", None)
+            gen_cfg = getattr(asr_pipe.model, "generation_config", None)
             no_ts_token_id = getattr(gen_cfg, "no_timestamps_token_id", None)
             if no_ts_token_id is None:
                 logger.warning(
@@ -437,23 +440,24 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 "Transformers internal chunking conflict"
             )
 
-        pipeline_kwargs = {
+        generate_kwargs: dict[str, Any] = {
+            "no_repeat_ngram_size": 3,
+            "temperature": 0,
+        }
+        pipeline_kwargs: dict[str, Any] = {
             "chunk_length_s": chunk_length_value,
             "batch_size": self.config.batch_size,
             "return_timestamps": _return_timestamps_value,
             "ignore_warning": True,
-            "generate_kwargs": {
-                "no_repeat_ngram_size": 3,  # from original script
-                "temperature": 0,  # from original script
-            },
+            "generate_kwargs": generate_kwargs,
         }
 
         # Determine if the model is multilingual.
         # Newer Transformers versions expose language/task maps via `task_to_id`,
         # older checkpoints used `lang_to_id`. We treat presence of either as a
         # sign the model supports multilingual/translation tasks.
-        lang_to_id = getattr(self.asr_pipe.model.config, "lang_to_id", None)
-        task_to_id = getattr(self.asr_pipe.model.config, "task_to_id", None)
+        lang_to_id = getattr(asr_pipe.model.config, "lang_to_id", None)
+        task_to_id = getattr(asr_pipe.model.config, "task_to_id", None)
 
         is_multilingual = False
         if task_to_id is not None:
@@ -476,7 +480,7 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
         # introduction of task/language mappings. Passing "task" or "language"
         # to such models triggers a ValueError. Only forward these parameters
         # when the generation config exposes the required attributes.
-        gen_cfg = getattr(self.asr_pipe.model, "generation_config", None)
+        gen_cfg = getattr(asr_pipe.model, "generation_config", None)
         has_task_mappings = False
         if gen_cfg is not None:
             has_task_mappings = any(
@@ -510,7 +514,10 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
             if cancellation_token is not None:
                 cancellation_token.raise_if_cancelled()
             try:
-                outputs = self.asr_pipe(str(audio_file_path), **pipeline_kwargs)
+                outputs = cast(
+                    dict[str, Any],
+                    asr_pipe(str(audio_file_path), **pipeline_kwargs),
+                )
             except RuntimeError as e:
                 oom_error = classify_oom_error(e)
                 if oom_error:
@@ -546,7 +553,10 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 try:
                     if cancellation_token is not None:
                         cancellation_token.raise_if_cancelled()
-                    outputs = self.asr_pipe(str(audio_file_path), **fallback_kwargs)
+                    outputs = cast(
+                        dict[str, Any],
+                        asr_pipe(str(audio_file_path), **fallback_kwargs),
+                    )
                     logger.info(
                         "Successfully completed transcription with chunk-level "
                         "timestamps fallback for %s",
@@ -652,7 +662,7 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 pass
             try:
                 if hasattr(torch, "mps") and torch.backends.mps.is_available():
-                    torch.mps.empty_cache()  # type: ignore[attr-defined]
+                    torch.mps.empty_cache()
             except Exception:  # pragma: no cover - defensive cleanup
                 pass
             # Force immediate garbage collection to reclaim memory

@@ -73,6 +73,8 @@ target/
 # Uploads directory
 uploads/
 data/
+!tests/data/
+!tests/data/sample.mp4
 
 # Test directory
 tests/*.mp3

@@ -2,8 +2,8 @@
 # Any attempt by a dependency to install one of these will cause resolution to fail.
 # Usage:
 #   pip install -r requirements-reviewer.txt -c constraints-no-heavy.txt
-# or with PDM:
-#   pdm sync -G reviewer --no-editable --no-self -v -c constraints-no-heavy.txt
+# or with uv:
+#   uv pip install -r requirements-reviewer.txt -c constraints-no-heavy.txt
 # (Adjust command to your workflow; key is passing this constraints file.)
 
 # Torch ecosystem

@@ -81,7 +81,7 @@ import os
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
-from typing import Literal
+from typing import Literal, cast
 
 from dotenv import load_dotenv
 
@@ -137,7 +137,9 @@ _TIMESTAMP_TYPE_ENV = os.getenv("WHISPER_TIMESTAMP_TYPE", "chunk")
 if _TIMESTAMP_TYPE_ENV not in ("chunk", "word"):
     # Fallback to "chunk" if the environment variable has an invalid value
     _TIMESTAMP_TYPE_ENV = "chunk"
-DEFAULT_TIMESTAMP_TYPE: Literal["chunk", "word"] = _TIMESTAMP_TYPE_ENV
+DEFAULT_TIMESTAMP_TYPE: Literal["chunk", "word"] = cast(
+    Literal["chunk", "word"], _TIMESTAMP_TYPE_ENV
+)
 
 DEFAULT_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "None")  # None means auto-detect
 DEFAULT_DTYPE = os.getenv("WHISPER_DTYPE", "float16")  # Data type for model inference
@@ -245,6 +247,15 @@ DEFAULT_STABILIZE = os.getenv("STABILIZE_DEFAULT", "false").lower() == "true"
 DEFAULT_DEMUCS = os.getenv("DEMUCS_DEFAULT", "false").lower() == "true"
 DEFAULT_VAD = os.getenv("VAD_DEFAULT", "false").lower() == "true"
 DEFAULT_VAD_THRESHOLD = float(os.getenv("VAD_THRESHOLD_DEFAULT", "0.35"))
+DEFAULT_SUPPRESS_TS_TOKENS = (
+    os.getenv("SUPPRESS_TS_TOKENS_DEFAULT", "true").lower() == "true"
+)
+DEFAULT_GAP_PADDING = os.getenv("GAP_PADDING_DEFAULT", " ...")
+DEFAULT_ADJUST_GAPS = os.getenv("ADJUST_GAPS_DEFAULT", "true").lower() == "true"
+_DEFAULT_NONSPEECH_SKIP_RAW = os.getenv("NONSPEECH_SKIP_DEFAULT", "").strip()
+DEFAULT_NONSPEECH_SKIP = (
+    float(_DEFAULT_NONSPEECH_SKIP_RAW) if _DEFAULT_NONSPEECH_SKIP_RAW else None
+)
 
 
 # ROCm/HIP Configuration (for AMD GPUs)

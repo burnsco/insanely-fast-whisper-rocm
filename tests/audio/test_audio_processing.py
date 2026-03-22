@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -176,6 +178,23 @@ def test_extract_audio_from_video_custom_parameters() -> None:
             # Note: result path returned but file doesn't exist since ffmpeg is mocked
     finally:
         os.unlink(tmp_path)
+
+
+def test_extract_audio_from_video_real_sample(sample_video_path: Path) -> None:
+    """Extract audio from the committed sample video with real ffmpeg."""
+    if shutil.which("ffmpeg") is None:
+        pytest.skip("ffmpeg binary is not installed in this environment.")
+
+    result = extract_audio_from_video(str(sample_video_path))
+    result_path = Path(result)
+
+    try:
+        assert result_path.exists()
+        assert result_path.suffix == ".wav"
+        assert result_path.stat().st_size > 0
+        assert get_audio_duration(str(result_path)) > 0.0
+    finally:
+        shutil.rmtree(result_path.parent, ignore_errors=True)
 
 
 def test_split_audio_valid_parameters() -> None:

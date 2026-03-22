@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Script Description: Run local CI pipeline (fix, format, test, coverage)
+# Script Description: Run local CI pipeline (fix, format, type-check, test, coverage)
 # Author: elvee
 # Version: 0.2.0
 # License: MIT
@@ -31,11 +31,12 @@ Options:
   -h, --help                 Show help
 
 This script performs:
-  • pdm run fix
-  • pdm run format
-  • pdm run test
-  • pdm run test-cov
-  • pdm run interrogate
+  • uv run ruff check --fix .
+  • uv run ruff format .
+  • uv run ty check insanely_fast_whisper_rocm
+  • uv run pytest -q
+  • uv run pytest --cov=insanely_fast_whisper_rocm --cov-report=term-missing:skip-covered --cov-report=xml
+  • uv run interrogate . --fail-under=85 -vvvv --style=google
 "
 }
 
@@ -48,11 +49,12 @@ error_exit() {
 # Main logic
 main_logic() {
   echo "[+] The following tasks will be executed:"
-  echo "    • pdm run fix"
-  echo "    • pdm run format"
-  echo "    • pdm run test"
-  echo "    • pdm run test-cov"
-  echo "    • pdm run interrogate"
+  echo "    • uv run ruff check --fix ."
+  echo "    • uv run ruff format ."
+  echo "    • uv run ty check insanely_fast_whisper_rocm"
+  echo "    • uv run pytest -q"
+  echo "    • uv run pytest --cov=insanely_fast_whisper_rocm --cov-report=term-missing:skip-covered --cov-report=xml"
+  echo "    • uv run interrogate . --fail-under=85 -vvvv --style=google"
   echo ""
 
   local output_file="$1"
@@ -60,19 +62,22 @@ main_logic() {
   {
     echo "[+] Running fix..."
     echo ""
-    pdm run fix
+    uv run ruff check --fix .
     echo ""
     echo "[+] Running format..."
-    pdm run format
+    uv run ruff format .
+    echo ""
+    echo "[+] Running type checks..."
+    uv run ty check insanely_fast_whisper_rocm
     echo ""
     echo "[+] Running tests..."
-    pdm run test
+    uv run pytest -q
     echo ""
     echo "[+] Running test coverage..."
-    pdm run test-cov
+    uv run pytest --cov=insanely_fast_whisper_rocm --cov-report=term-missing:skip-covered --cov-report=xml
     echo ""
     echo "[+] Running interrogate to check docstring coverage..."
-    pdm run interrogate . --fail-under=85 -vvvv --style=google
+    uv run interrogate . --fail-under=85 -vvvv --style=google
     echo ""
     echo "[+] Local CI check successful. You can commit these changes."
   } | tee "${output_file}"

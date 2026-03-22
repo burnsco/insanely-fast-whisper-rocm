@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from insanely_fast_whisper_rocm.core.asr_backend import (
     HuggingFaceBackendConfig,
@@ -123,8 +123,8 @@ class CLIFacade:
         chunk_length: int = 30,
         progress_group_size: int | None = None,
         language: str | None = None,
-        task: str = "transcribe",
-        return_timestamps_value: bool | str = True,
+        task: Literal["transcribe", "translate"] = "transcribe",
+        return_timestamps_value: bool | Literal["chunk", "word"] = True,
         progress_cb: ProgressCallback | None = None,
         cancellation_token: CancellationToken | None = None,
     ) -> dict[str, Any]:

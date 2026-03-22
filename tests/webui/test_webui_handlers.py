@@ -45,7 +45,14 @@ def test_transcribe_handler_with_stabilization(
     _mock_pipeline, mock_stabilize = mock_pipeline_and_stabilizer
 
     config = TranscriptionConfig(
-        stabilize=True, demucs=True, vad=True, vad_threshold=0.6
+        stabilize=True,
+        demucs=True,
+        vad=True,
+        vad_threshold=0.6,
+        suppress_ts_tokens=False,
+        gap_padding=" lead",
+        adjust_gaps=False,
+        nonspeech_skip=1.5,
     )
 
     transcribe(audio_file_path="dummy.wav", config=config, file_config=MagicMock())
@@ -55,6 +62,10 @@ def test_transcribe_handler_with_stabilization(
     assert call_kwargs.get("demucs") is True
     assert call_kwargs.get("vad") is True
     assert call_kwargs.get("vad_threshold") == 0.6
+    assert call_kwargs.get("suppress_ts_tokens") is False
+    assert call_kwargs.get("gap_padding") == " lead"
+    assert call_kwargs.get("adjust_gaps") is False
+    assert call_kwargs.get("nonspeech_skip") == 1.5
 
 
 def test_transcribe_handler_without_stabilization(

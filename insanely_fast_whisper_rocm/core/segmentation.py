@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+from collections.abc import Iterator
 
 from insanely_fast_whisper_rocm.utils import constants
 
@@ -391,7 +392,7 @@ def _respect_limits(words: list[Word], soft_limit: bool = False) -> bool:
     )
 
 
-def _sentence_chunks(words: list[Word]) -> list[list[Word]]:
+def _sentence_chunks(words: list[Word]) -> Iterator[list[Word]]:
     """Split a list of words into sentence chunks based on punctuation.
 
     This function groups words into sentences by looking for sentence-ending

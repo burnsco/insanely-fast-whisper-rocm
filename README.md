@@ -4,7 +4,7 @@ A comprehensive Whisper-based speech recognition toolkit designed specifically t
 
 [![Python](https://img.shields.io/badge/Python-3.10-blue)](https://www.python.org)
 [![Version](https://img.shields.io/badge/Version-v2.1.5-informational)](#insanely-fast-whisper-rocm)
-[![ROCm Version](https://img.shields.io/badge/ROCm-v6.4%20%7C%20v7.0-informational)](https://repo.radeon.com/rocm/)
+[![ROCm Version](https://img.shields.io/badge/ROCm-v6.4%20%7C%20v7.0%20%7C%20v7.2-informational)](https://repo.radeon.com/rocm/)
 [![API](https://img.shields.io/badge/API-FastAPI-green)](#api-server)
 [![CLI](https://img.shields.io/badge/CLI-Click-yellow)](#cli-command-line-interface)
 [![WebUI](https://img.shields.io/badge/WebUI-Gradio-orange)](#webui-gradio-interface)
@@ -17,7 +17,7 @@ A comprehensive Whisper-based speech recognition toolkit designed specifically t
 - **⚡ CLI Tools**: Command-line interface for single-file processing
 - **📦 Model Management**: Automatic Hugging Face model downloading and caching
 - **🏗️ Docker Support**: Full containerization with development and production configurations (now using PDM for dependency management in Docker builds)
-- **🎯 ROCm Integration**: AMD GPU [(ROCm v6.4 & v7.0)](https://repo.radeon.com/rocm/) support for accelerated inference
+- **🎯 ROCm Integration**: AMD GPU [(ROCm v6.4, v7.0, & v7.2)](https://repo.radeon.com/rocm/) support for accelerated inference
 
 ## Table of Contents
 
@@ -82,7 +82,7 @@ The recommended way to run the application is using Docker Compose:
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/beecave-homelab/insanely-fast-whisper-rocm.git
+    git clone https://github.com/burnsco/insanely-fast-whisper-rocm.git
     cd insanely-fast-whisper-rocm
     ```
 
@@ -100,34 +100,43 @@ The recommended way to run the application is using Docker Compose:
     docker compose up --build -d
     ```
 
-### Alternative: Local Development with PDM
+### Alternative: Local Development with uv
 
-For local development, PDM (Python Development Master) is used to manage dependencies and run scripts. Ensure you have Python 3.10+ installed.
+For local development, `uv` is the supported package manager and virtual environment tool. Ensure you have Python 3.10 installed.
 
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/beecave-homelab/insanely-fast-whisper-rocm.git
+    git clone https://github.com/burnsco/insanely-fast-whisper-rocm.git
     cd insanely-fast-whisper-rocm
     ```
 
-2. Install PDM (if you haven't already):
+2. Install uv (if you haven't already):
 
     ```bash
-    curl -sSL https://pdm-project.org/install-pdm.py | python3 -
+    curl -LsSf https://astral.sh/uv/install.sh | sh
     ```
 
-    Refer to the [official PDM documentation](https://pdm-project.org/latest/installation/) for other installation methods.
+    Refer to the [official uv documentation](https://docs.astral.sh/uv/) for other installation methods.
 
-3. Install project dependencies using PDM:
+3. Sync project dependencies using uv:
 
     ```bash
     # To install ROCm support
-    pdm install -G rocm-6-4-1
-    # or swap `rocm-6-4-1` for `rocm-7-0` if you want to use a different ROCm version
+    uv sync --extra rocm-7-2
+    # or swap `rocm-7-2` for `rocm-7-0` or `rocm-6-4-1` if you want to use a different ROCm version
 
     # To include development tools and ROCm support
-    pdm install -G dev -G rocm-6-4-1 -G bench
+    uv sync --extra rocm-7-2 --group dev --group bench
+    ```
+
+4. Run the common quality checks:
+
+    ```bash
+    uv run ruff check --fix .
+    uv run ruff format .
+    uv run ty check insanely_fast_whisper_rocm
+    uv run pytest --maxfail=1 -q
     ```
 
 ### Model Download
@@ -136,16 +145,16 @@ The application will automatically download the specified Whisper model on first
 
 ```bash
 # Download the default model (specified in .env or WHISPER_MODEL env var)
-python -m insanely_fast_whisper_rocm.utils.download_hf_model
+uv run python -m insanely_fast_whisper_rocm.utils.download_hf_model
 
 # Download a specific model
-python -m insanely_fast_whisper_rocm.utils.download_hf_model --model openai/whisper-large-v3
+uv run python -m insanely_fast_whisper_rocm.utils.download_hf_model --model openai/whisper-large-v3
 
 # Force re-download of the model
-python -m insanely_fast_whisper_rocm.utils.download_hf_model --force
+uv run python -m insanely_fast_whisper_rocm.utils.download_hf_model --force
 
 # Use a custom cache directory
-python -m insanely_fast_whisper_rocm.utils.download_hf_model --cache_dir /path/to/cache
+uv run python -m insanely_fast_whisper_rocm.utils.download_hf_model --cache_dir /path/to/cache
 ```
 
 For private or gated models, set the `HF_TOKEN` environment variable with your API token.
@@ -180,16 +189,16 @@ To create or update your user-specific configuration file (`~/.config/insanely-f
 
     This script helps you create the `~/.config/insanely-fast-whisper-rocm/.env` file.
 
-    If you are using PDM (recommended for managing dependencies and scripts):
+    If you are using uv (recommended for managing dependencies and scripts):
 
     ```bash
-    pdm run setup-config
+    uv run python scripts/setup_config.py
     ```
 
     Alternatively, you can run the script directly from the project root:
 
     ```bash
-    python scripts/setup_config.py
+    uv run python scripts/setup_config.py
     ```
 
 2. **Edit your configuration file:**
@@ -350,7 +359,7 @@ For code reviewers or contributors who need to run tests without a GPU or heavy 
 1. **Install lightweight dependencies:**
 
     ```bash
-    pip install -r requirements-reviewer.txt
+    uv pip install -r requirements-reviewer.txt -c constraints-no-heavy.txt
     ```
 
 2. **Run the CPU-safe test suite:**
@@ -358,7 +367,7 @@ For code reviewers or contributors who need to run tests without a GPU or heavy 
     The following command runs tests that do not require `torch` or a GPU. It excludes tests for CUDA, the full ASR backend, and server integration tests.
 
     ```bash
-    pytest -q -k "not (cuda or webui or api_integration or asr_backend_generation_config or asr_backend_timestamp or api)"
+    uv run pytest -q -k "not (cuda or webui or api_integration or asr_backend_generation_config or asr_backend_timestamp or api)"
     ```
 
     This ensures that core logic, utilities, and the dummy pipeline can be validated quickly in any environment.

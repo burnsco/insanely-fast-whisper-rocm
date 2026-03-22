@@ -1,5 +1,5 @@
 ---
-repo: https://github.com/beecave-homelab/insanely-fast-whisper-rocm
+repo: https://github.com/burnsco/insanely-fast-whisper-rocm
 commit: 02ce442e8864435a1d0f4b48e76ba2c415041137
 updated: 2026-01-10T12:06:00+00:00
 ---
@@ -7,7 +7,7 @@ updated: 2026-01-10T12:06:00+00:00
 
 # Project Overview | Insanely Fast Whisper API (ROCm)
 
-A comprehensive Whisper-based speech recognition toolkit designed specifically to provide **AMD GPU (ROCm v6.4.1 & v7.0) support** for high-performance Automatic Speech Recognition (ASR) and translation. This package extends the capabilities of the original [insanely-fast-whisper](https://github.com/Vaibhavs10/insanely-fast-whisper) by providing multiple interfaces, ROCm compatibility, and production-ready architecture.
+A comprehensive Whisper-based speech recognition toolkit designed specifically to provide **AMD GPU (ROCm v6.4.1, v7.0, & v7.2) support** for high-performance Automatic Speech Recognition (ASR) and translation. This package extends the capabilities of the original [insanely-fast-whisper](https://github.com/Vaibhavs10/insanely-fast-whisper) by providing multiple interfaces, ROCm compatibility, and production-ready architecture.
 
 > [!NOTE]
 > This overview is the **single source of truth** for developers working on this codebase.
@@ -36,7 +36,7 @@ A comprehensive Whisper-based speech recognition toolkit designed specifically t
   - [CLI (Command Line Interface) Details](#cli-command-line-interface-details)
 - [SRT Formatting Pipeline Architecture](#srt-formatting-pipeline-architecture)
 - [Performance Benchmarking](#performance-benchmarking)
-- [Dependency Management](#dependency-management-with-pdm)
+- [Dependency Management](#dependency-management-with-uv)
 - [Error Handling](#error-handling)
 - [Development Guidelines](#development-guidelines)
 - [Deployment Options](#deployment-options)
@@ -49,7 +49,7 @@ A comprehensive Whisper-based speech recognition toolkit designed specifically t
 
 ```bash
 # Clone and activate
-git clone https://github.com/beecave-homelab/insanely-fast-whisper-rocm.git
+git clone https://github.com/burnsco/insanely-fast-whisper-rocm.git
 cd insanely-fast-whisper-rocm
 ```
 
@@ -62,24 +62,21 @@ python scripts/setup_config.py
 docker compose -f docker-compose.dev.yaml up --build -d
 ```
 
-**Or run locally with PDM (for development):**
+**Or run locally with uv (for development):**
 
 ```bash
-# Install PDM (if not already installed)
-curl -sSL https://pdm-project.org/install-pdm.py | python3 -
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install project dependencies (including dev and rocm groups)
-pdm install -G rocm-7-0,bench,dev
+uv sync --extra rocm-7-2 --group dev --group bench
 
-# Activate the PDM-managed environment (optional, PDM handles it)
-# pdm shell
-
-# Choose your interface (run via PDM):
-pdm run api                # API Server
-pdm run api-debug          # API Server (verbose)
-pdm run webui              # WebUI Interface
-pdm run webui-debug        # WebUI Interface (debug)
-pdm run cli transcribe audio.mp3  # CLI
+# Choose your interface (run via uv):
+uv run insanely-fast-whisper-rocm             # API Server
+uv run insanely-fast-whisper-rocm -v          # API Server (verbose)
+uv run insanely-fast-whisper-webui            # WebUI Interface
+uv run insanely-fast-whisper-webui --debug    # WebUI Interface (debug)
+uv run insanely-fast-whisper-cli transcribe audio.mp3  # CLI
 ```
 
 ---
@@ -137,7 +134,7 @@ pdm run cli transcribe audio.mp3  # CLI
 
 ### Primary Focus: ROCm Support
 
-- **AMD GPU (ROCm v6.4.1 & v7.0) Support**: First-class AMD GPU acceleration for Whisper models, tested with PyTorch 2.8.0+rocm7.0.0 and torchaudio 2.8.0+rocm7.0.0
+- **AMD GPU (ROCm v6.4.1, v7.0, & v7.2) Support**: First-class AMD GPU acceleration for Whisper models, tested with PyTorch 2.8.0+rocm7.0.0 and torchaudio 2.8.0+rocm7.0.0
 
 - **Extended Original Package**: Builds upon [insanely-fast-whisper](https://github.com/Vaibhavs10/insanely-fast-whisper) with additional interfaces and ROCm compatibility
 - **Production-Ready Architecture**: Beyond CLI-only approach of original package
@@ -352,16 +349,16 @@ The script performs the following actions:
 
 Refer to the `.env.example` file in the project root for a comprehensive list of all available configuration options and their descriptions (e.g., model settings, device selection, file handling parameters, timezone configuration).
 
-Run it using PDM:
+Run it using uv:
 
 ```bash
-pdm run setup-config
+uv run python scripts/setup_config.py
 ```
 
 Or directly:
 
 ```bash
-python scripts/setup_config.py
+uv run python scripts/setup_config.py
 ```
 
 **Important**: No direct `os.getenv()` calls should be made outside of [insanely_fast_whisper_rocm/utils/env_loader.py](insanely_fast_whisper_rocm/utils/env_loader.py) or [insanely_fast_whisper_rocm/utils/constants.py](insanely_fast_whisper_rocm/utils/constants.py) to ensure consistent configuration loading.
@@ -562,15 +559,15 @@ Use the `--benchmark` flag to measure processing speed and collect hardware stat
 > **Install dependencies**: Benchmarking relies on optional packages (`psutil`, `pyamdgpuinfo`, etc.). Install them with:
 >
 > ```bash
-> pdm install -G bench
+> uv sync --group bench
 > ```
 
 ```bash
 # Quick benchmark (writes benchmark JSON; transcript export is unchanged by --benchmark)
-python -m insanely_fast_whisper_rocm.cli transcribe audio.mp3 --benchmark
+uv run insanely-fast-whisper-cli transcribe audio.mp3 --benchmark
 
 # Benchmark and also export transcript as TXT
-python -m insanely_fast_whisper_rocm.cli transcribe audio.mp3 --benchmark --export-format txt
+uv run insanely-fast-whisper-cli transcribe audio.mp3 --benchmark --export-format txt
 
 # Pass arbitrary metadata
 python -m insanely_fast_whisper_rocm.cli transcribe audio.mp3 --benchmark --benchmark-extra precision=fp16 tokenizer=fast
@@ -844,11 +841,12 @@ The core segmentation engine that implements readability rules.
 class Word:
     text: str
     start: float  # seconds
-    end: float    # seconds
+    end: float  # seconds
+
 
 @dataclass
 class Segment:
-    text: str        # May contain \n for line breaks
+    text: str  # May contain \n for line breaks
     start: float
     end: float
     words: list[Word]
@@ -1049,8 +1047,8 @@ To change line length limits:
 
 ```python
 # In .env or environment
-MAX_LINE_CHARS=50  # Increase from 42
-MAX_BLOCK_CHARS=100  # Increase proportionally
+MAX_LINE_CHARS = 50  # Increase from 42
+MAX_BLOCK_CHARS = 100  # Increase proportionally
 ```
 
 Or programmatically in tests:
@@ -1189,9 +1187,9 @@ python -m insanely_fast_whisper_rocm.cli transcribe audio.mp3 \
 
 ---
 
-## Dependency Management with PDM
+## Dependency Management with uv
 
-This project uses [PDM (Python Development Master)](https://pdm-project.org/) for dependency management and package building, adhering to PEP 517, PEP 518, and PEP 621 standards. All project metadata, dependencies, and scripts are defined in the [`pyproject.toml`](pyproject.toml) file.
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management, virtual environments, locking, and requirements exports. Project metadata and tool configuration live in [`pyproject.toml`](pyproject.toml), and the canonical lockfile is [`uv.lock`](uv.lock).
 
 ### Torchaudio backend setup for stable-ts (SoundFile + libsndfile)
 
@@ -1224,13 +1222,10 @@ Notes for ROCm users:
 
 ### [`pyproject.toml`](pyproject.toml) Structure
 
-- **`[project]`**: Contains core project metadata such as name, version, authors, description, and classifiers.
-  - **`dependencies`**: Lists core runtime dependencies required for the application to function.
-  - **`optional-dependencies`**: Defines groups of dependencies that are not required for the core functionality but can be installed for specific purposes. Key groups include:
-    - `dev`: Tools for development, such as linters (`ruff`), testing frameworks (`pytest`, `pytest-cov`), and other utilities.
-    - `rocm-6-4-1`: Dependencies for AMD ROCm v6.4.1 GPU support, including PyTorch 2.5.0-2.8.0, torchaudio 2.5.0-2.8.0, onnxruntime-rocm, and pytorch-triton-rocm.
-    - `rocm-7-0`: Dependencies for AMD ROCm v7.0 GPU support, including PyTorch 2.8.0, torchaudio 2.8.0, onnxruntime-rocm, and pytorch-triton-rocm.
-    - `bench`: Benchmarking utilities including `pyamdgpuinfo` for GPU metrics.
+- **`[project]`**: Contains the core project metadata and runtime dependencies.
+- **`[project.optional-dependencies]`**: Holds the mutually exclusive ROCm extras (`rocm-6-4-1`, `rocm-7-0`, `rocm-7-2`).
+- **`[dependency-groups]`**: Holds local-only tooling groups such as `dev`, `bench`, and `reviewer`.
+- **`[tool.uv]`**: Defines default groups, conflicting extras, custom indexes, and package source routing for ROCm wheels.
 
 #### ROCm Version-Specific Dependency Groups
 
@@ -1242,94 +1237,95 @@ The project provides separate dependency groups for different ROCm versions to e
 - **`rocm-7-0`**: For ROCm 7.0 with PyTorch 2.8.0
   - Includes: `torch==2.8.0`, `torchaudio==2.8.0`, `onnxruntime-rocm==1.22.1`, `pytorch-triton-rocm==3.4.0`
 
+- **`rocm-7-2`**: For ROCm 7.2 with PyTorch 2.8.0
+  - Includes: `torch==2.8.0`, `torchaudio==2.8.0`, `onnxruntime_migraphx==1.23.2`, `triton==3.4.0`
+
 **Install ROCm dependencies:**
 
 ```bash
 # For ROCm v6.4.1
-pdm install -G rocm-6-4-1
+uv sync --extra rocm-6-4-1
 
 # For ROCm v7.0
-pdm install -G rocm-7-0
+uv sync --extra rocm-7-0
 
-# For development with ROCm v7.0
-pdm install -G rocm-7-0,bench,dev
+# For ROCm v7.2
+uv sync --extra rocm-7-2
+
+# For development with ROCm v7.2
+uv sync --extra rocm-7-2 --group dev --group bench
 ```
 
-- **`[tool.pdm]`**: Configures PDM-specific settings.
-  - **`scripts`**: Defines shortcuts for common commands (e.g., `lint`, `format`, `test`, `api`, `webui`, `cli`). These can be run using `pdm run <script_name>`.
-  - **`dev-dependencies`**: PDM's way to specify development-only dependencies, often mirrored or managed via the `dev` group in `optional-dependencies` for broader compatibility.
+### uv Setup and Installation
 
-### PDM Setup and Installation
-
-1. **Install PDM**: If you don't have PDM, install it globally or per-user. A common method is:
+1. **Install uv**: If you don't have uv, install it globally or per-user. A common method is:
 
     ```bash
-    curl -sSL https://pdm-project.org/install-pdm.py | python3 -
+    curl -LsSf https://astral.sh/uv/install.sh | sh
     ```
 
-    Follow the instructions to add PDM to your PATH.
+    Follow the instructions to add uv to your PATH.
 
 2. **Install Project Dependencies**: Navigate to the project root directory and run:
 
     ```bash
-    pdm install
+    uv sync
     ```
 
     By default, this installs core dependencies. To include optional groups:
 
     ```bash
     # Install core + development tools
-    pdm install -G dev
+    uv sync --group dev
 
     # Install core + ROCm v6.4.1 support
-    pdm install -G rocm-6-4-1
+    uv sync --extra rocm-6-4-1
 
-    # Install core + development tools + ROCm v7.0 support
-    pdm install -G dev -G rocm-7-0
+    # Install core + development tools + ROCm v7.2 support
+    uv sync --extra rocm-7-2 --group dev
     ```
 
-    PDM creates a `.venv` directory for the virtual environment and a `pdm.lock` file to ensure deterministic builds.
+    uv creates a `.venv` directory for the virtual environment and a `uv.lock` file to ensure deterministic builds.
 
-### Common PDM Commands
+### Common uv Commands
 
-- **`pdm install`**: Install all dependencies as specified in `pdm.lock` (if it exists) or [`pyproject.toml`](pyproject.toml).
-  - `pdm install -G <group>`: Install dependencies from a specific optional group.
-- **`pdm add <package>`**: Add a new dependency to [`pyproject.toml`](pyproject.toml) and install it.
-  - `pdm add -dG <group> <package>`: Add a package to a specific optional group.
-- **`pdm remove <package>`**: Remove a dependency.
-- **`pdm update`**: Update dependencies to their latest allowed versions according to [`pyproject.toml`](pyproject.toml) and update `pdm.lock`.
-- **`pdm run <script_name>`**: Execute a script defined in `[tool.pdm.scripts]` in [`pyproject.toml`](pyproject.toml).
-- **`pdm lock`**: Resolve dependencies and write to `pdm.lock` without installing.
-- **`pdm shell`**: Activate the PDM-managed virtual environment in the current shell.
+- **`uv sync`**: Install dependencies from [`uv.lock`](uv.lock) into `.venv`.
+- **`uv sync --extra <extra>`**: Include a ROCm extra such as `rocm-7-2`.
+- **`uv sync --group <group>`**: Include local tooling groups such as `dev`, `bench`, or `reviewer`.
+- **`uv lock`**: Resolve dependencies and refresh `uv.lock`.
+- **`uv run <command>`**: Run tools and console entrypoints inside the project environment.
+- **`uv export --locked ...`**: Regenerate the committed `requirements-*.txt` compatibility artifacts.
 
 ### Relationship with `requirements-*.txt` Files
 
-Docker builds install dependencies from the exported `requirements-*.txt` files
-using `pip` (see `Dockerfile`/`Dockerfile.dev`). The requirements exports remain
-the source of truth for container builds to keep image sizes lean.
-
-Ideally, these `requirements.txt` files can be generated from `pdm.lock` using `pdm export` to ensure consistency:
+The committed `requirements-*.txt` files are generated compatibility artifacts for reviewer and external workflows. They should be regenerated from [`uv.lock`](uv.lock) so they stay aligned with the locked dependency graph:
 
 ```bash
-# Export default dependencies
-pdm export -o requirements.txt --without-hashes --prod
+# Export default runtime dependencies
+uv export --locked --no-default-groups --no-hashes --no-emit-project -o requirements.txt
 
-# Export a specific group (e.g., rocm)
-pdm export -G rocm-7-0,bench -o requirements-rocm-v7-0.txt --without-hashes 
+# Export ROCm 6.4.1 runtime + benchmark tooling
+uv export --locked --no-default-groups --extra rocm-6-4-1 --group bench --no-hashes --no-emit-project -o requirements-rocm-v6-4-1.txt
 
-# Export a specific group (e.g., rocm)
-pdm export -G rocm-6-4-1,bench -o requirements-rocm-v6-4-1.txt --without-hashes
+# Export ROCm 7.0 runtime + benchmark tooling
+uv export --locked --no-default-groups --extra rocm-7-0 --group bench --no-hashes --no-emit-project -o requirements-rocm-v7-0.txt
 
-# Export development dependencies
-pdm export -G dev -o requirements-dev.txt --without-hashes --no-default
+# Export ROCm 7.2 runtime + benchmark tooling
+uv export --locked --no-default-groups --extra rocm-7-2 --group bench --no-hashes --no-emit-project -o requirements-rocm-v7-2.txt
 
-# Export all dependencies
-pdm export -G rocm-7-0,bench,dev -o requirements-all.txt --without-hashes --no-extras
+# Export development-only tooling
+uv export --locked --only-group dev --no-hashes --no-emit-project -o requirements-dev.txt
+
+# Export reviewer-only tooling
+uv export --locked --only-group reviewer --no-hashes --no-emit-project -o requirements-reviewer.txt
+
+# Export the recommended full local stack
+uv export --locked --extra rocm-7-2 --group bench --no-hashes --no-emit-project -o requirements-all.txt
 ```
 
-This practice helps keep them synchronized with the PDM-managed dependencies.
+This practice keeps the exported files synchronized with the uv-managed lockfile.
 
-> **PyTorch Note**: Due to PyTorch's specific index URL requirements for different compute platforms (CPU, CUDA, ROCm), its installation is carefully managed within PDM's dependency groups or via the `requirements-*.txt` files to ensure the correct version is fetched. PDM can handle custom source URLs if needed, which should be configured in [`pyproject.toml`](pyproject.toml).
+> **PyTorch Note**: ROCm packages are pinned through `tool.uv.sources` and explicit ROCm indexes in [`pyproject.toml`](pyproject.toml), so each ROCm extra resolves against the correct Radeon wheel feed.
 
 ---
 
@@ -1360,6 +1356,7 @@ This practice helps keep them synchronized with the PDM-managed dependencies.
 
 - PEP8 + 88-char lines
 - `ruff`
+- `ty`
 - Type hints everywhere
 
 ### Testing
@@ -1367,7 +1364,13 @@ This practice helps keep them synchronized with the PDM-managed dependencies.
 Unit & API test suite:
 
 ```bash
-pdm run pytest --maxfail=1 -q
+uv run pytest --maxfail=1 -q
+```
+
+Type-check the package:
+
+```bash
+uv run ty check insanely_fast_whisper_rocm
 ```
 
 #### WebUI integration tests (Gradio)

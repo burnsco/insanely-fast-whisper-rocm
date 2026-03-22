@@ -582,3 +582,118 @@ def test_stabilize_postprocess_typeerror_fallback(
     assert stabilized.get("stabilized") is True
     assert call_count["count"] == 2  # Called twice due to TypeError fallback
     assert stabilized.get("stabilization_path") == "postprocess_word_timestamps"
+
+
+def test_stabilize_forwards_new_kwargs_to_transcribe_any(
+    monkeypatch: pytest.MonkeyPatch, sample_result: dict[str, Any]
+) -> None:
+    """New stabilization controls should be passed through to transcribe_any."""
+    captured_kwargs: dict[str, Any] = {}
+
+    def fake_transcribe_any(
+        inference_func: Callable[[], dict[str, Any]],
+        audio: str,
+        denoiser: str | None = None,
+        check_sorted: bool = False,
+        **kwargs: dict[str, Any],
+    ) -> dict[str, Any]:
+        nonlocal captured_kwargs
+        captured_kwargs = {
+            "audio": audio,
+            "denoiser": denoiser,
+            "check_sorted": check_sorted,
+            **kwargs,
+        }
+        base = inference_func()
+        base["segments"] = [{"text": "ok", "start": 0.0, "end": 1.0}]
+        return base
+
+    mock_sw = SimpleNamespace(transcribe_any=fake_transcribe_any)
+    monkeypatch.setattr(st, "stable_whisper", mock_sw, raising=False)
+    monkeypatch.setattr(st, "_postprocess", None, raising=False)
+    monkeypatch.setattr(st, "_postprocess_alt", None, raising=False)
+
+    stabilized = st.stabilize_timestamps(
+        sample_result,
+        demucs=True,
+        vad=True,
+        vad_threshold=0.45,
+        suppress_ts_tokens=False,
+        gap_padding=" pre",
+        adjust_gaps=False,
+        nonspeech_skip=1.75,
+    )
+
+    assert stabilized.get("stabilized") is True
+    assert captured_kwargs["denoiser"] == "demucs"
+    assert captured_kwargs["vad"] is True
+    assert captured_kwargs["vad_threshold"] == 0.45
+    assert captured_kwargs["suppress_ts_tokens"] is False
+    assert captured_kwargs["gap_padding"] == " pre"
+    assert captured_kwargs["nonspeech_skip"] == 1.75
+
+
+def test_stabilize_applies_gap_adjustment_when_supported(
+    monkeypatch: pytest.MonkeyPatch, sample_result: dict[str, Any]
+) -> None:
+    """Gap adjustment should run before converting result objects to dict."""
+    call_state = {"adjust_gaps_called": False}
+
+    class GapAdjustableResult:
+        def adjust_gaps(self, *, one_section: bool = False) -> "GapAdjustableResult":
+            call_state["adjust_gaps_called"] = one_section
+            return self
+
+        def to_dict(self) -> dict[str, Any]:
+            return {
+                "segments": [{"text": "tight", "start": 0.2, "end": 0.8}],
+                "text": "tight result",
+            }
+
+    def fake_postprocess(
+        converted: dict[str, Any], audio: str, **kwargs: object
+    ) -> GapAdjustableResult:
+        return GapAdjustableResult()
+
+    mock_sw = SimpleNamespace(transcribe_any=lambda *a, **k: None)
+    monkeypatch.setattr(st, "stable_whisper", mock_sw, raising=False)
+    monkeypatch.setattr(st, "_postprocess", fake_postprocess, raising=False)
+    monkeypatch.setattr(st, "_postprocess_alt", None, raising=False)
+
+    stabilized = st.stabilize_timestamps(sample_result, adjust_gaps=True)
+
+    assert stabilized.get("stabilized") is True
+    assert call_state["adjust_gaps_called"] is True
+
+
+def test_stabilize_skips_gap_adjustment_when_disabled(
+    monkeypatch: pytest.MonkeyPatch, sample_result: dict[str, Any]
+) -> None:
+    """Gap adjustment should not run when the option is disabled."""
+    call_state = {"adjust_gaps_called": False}
+
+    class GapAdjustableResult:
+        def adjust_gaps(self, *, one_section: bool = False) -> "GapAdjustableResult":
+            call_state["adjust_gaps_called"] = True
+            return self
+
+        def to_dict(self) -> dict[str, Any]:
+            return {
+                "segments": [{"text": "loose", "start": 0.0, "end": 1.0}],
+                "text": "loose result",
+            }
+
+    def fake_postprocess(
+        converted: dict[str, Any], audio: str, **kwargs: object
+    ) -> GapAdjustableResult:
+        return GapAdjustableResult()
+
+    mock_sw = SimpleNamespace(transcribe_any=lambda *a, **k: None)
+    monkeypatch.setattr(st, "stable_whisper", mock_sw, raising=False)
+    monkeypatch.setattr(st, "_postprocess", fake_postprocess, raising=False)
+    monkeypatch.setattr(st, "_postprocess_alt", None, raising=False)
+
+    stabilized = st.stabilize_timestamps(sample_result, adjust_gaps=False)
+
+    assert stabilized.get("stabilized") is True
+    assert call_state["adjust_gaps_called"] is False

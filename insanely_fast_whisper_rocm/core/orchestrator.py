@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
 from insanely_fast_whisper_rocm.core.asr_backend import HuggingFaceBackendConfig
 from insanely_fast_whisper_rocm.core.backend_cache import (
@@ -113,9 +113,9 @@ class TranscriptionOrchestrator:
         self,
         audio_path: str,
         backend_config: HuggingFaceBackendConfig,
-        task: str = "transcribe",
+        task: Literal["transcribe", "translate"] = "transcribe",
         language: str | None = None,
-        timestamp_type: bool | str = True,
+        timestamp_type: bool | Literal["chunk", "word"] = True,
         progress_callback: ProgressCallback | None = None,
         warning_callback: Callable[[str], None] | None = None,
         save_transcriptions: bool = True,

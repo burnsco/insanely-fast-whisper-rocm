@@ -2,7 +2,7 @@
 
 set -e
 
-# Advanced, adjustable benchmarking wrapper for `pdm run cli transcribe`.
+# Advanced, adjustable benchmarking wrapper for `uv run insanely-fast-whisper-cli transcribe`.
 #
 # Features:
 # - Select model, device, dtype, language
@@ -84,7 +84,7 @@ trap on_interrupt INT TERM
 
 run_cmd_str() {
   # Run the provided command string in its own process group so we can
-  # terminate all children (e.g., pdm -> python -> transformers) at once.
+  # terminate all children (e.g., uv -> python -> transformers) at once.
   local cmd_str="$1"
   # Using setsid to start a new session and process group
   setsid bash -c "$cmd_str" &
@@ -354,7 +354,7 @@ build_cmd() {
   local demucs_flag="${7:-$DEMUCS}"
   local vad_flag="${8:-$VAD}"
 
-  local cmd=(pdm run cli transcribe)
+  local cmd=(uv run insanely-fast-whisper-cli transcribe)
   cmd+=("--timestamp-type" "$ts_type")
   # Add one or more --export-format flags (supports "srt json" space-separated)
   IFS=' ' read -r -a __fmts <<< "$fmt_list"

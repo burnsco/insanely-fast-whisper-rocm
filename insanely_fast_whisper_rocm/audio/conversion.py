@@ -9,11 +9,12 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
+from typing import Any
 
 try:  # pragma: no cover - optional dependency
-    import ffmpeg  # type: ignore
+    import ffmpeg
 except ModuleNotFoundError:  # pragma: no cover - handled gracefully
-    ffmpeg = None  # type: ignore
+    ffmpeg: Any | None = None
 
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ def ensure_wav(
     if ffmpeg is None:
         # Fallback to a pure-Python conversion path when FFmpeg is unavailable.
         try:  # pragma: no cover - optional dependency
-            from pydub import AudioSegment  # type: ignore[import]
+            from pydub import AudioSegment
         except ModuleNotFoundError as exc:  # pragma: no cover - handled gracefully
             logger.exception(
                 "FFmpeg is not installed and optional dependency 'pydub' is "
@@ -105,7 +106,7 @@ def ensure_wav(
             .overwrite_output()
             .run(quiet=True)
         )
-    except ffmpeg.Error as exc:  # type: ignore[attr-defined]
+    except ffmpeg.Error as exc:
         raise RuntimeError(
             f"Failed to convert {original_path} to WAV: "
             f"{exc.stderr.decode() if hasattr(exc, 'stderr') else exc}"

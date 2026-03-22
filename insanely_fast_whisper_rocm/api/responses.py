@@ -1,7 +1,7 @@
 """Format API responses for various payload styles."""
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -131,13 +131,18 @@ class ResponseFormatter:
         if isinstance(formatter, BaseFormatter):
             return formatter.format(payload)
 
-        format_callable: Callable[..., str] = getattr(formatter, "format", formatter)
+        format_attr = getattr(formatter, "format", None)
+        if callable(format_attr):
+            try:
+                return cast(FormatterCallable, format_attr)(payload)
+            except TypeError:
+                return cast(Callable[[], str], format_attr)()
 
         try:
-            return format_callable(payload)
+            return cast(FormatterCallable, formatter)(payload)
         except TypeError:
             # Fallback for formatters that don't accept a payload argument
-            return format_callable()
+            return cast(Callable[[], str], formatter)()
 
     @staticmethod
     def format_transcription(

@@ -52,6 +52,14 @@ def _predict(client: Client, audio_path: Path) -> list[Any]:
         "transcribe",  # task
         "float16",  # dtype
         30,  # chunk_length
+        False,  # stabilize
+        False,  # demucs
+        False,  # vad
+        0.35,  # vad_threshold
+        True,  # suppress_ts_tokens
+        " ...",  # gap_padding
+        True,  # adjust_gaps
+        "",  # nonspeech_skip
         True,  # save_transcriptions
         "transcripts",  # temp_uploads_dir
         api_name="/transcribe_audio_v2",

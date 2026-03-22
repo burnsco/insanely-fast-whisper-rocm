@@ -7,7 +7,7 @@ and other shared resources used by the API endpoints.
 from __future__ import annotations
 
 from collections.abc import Generator
-from typing import NoReturn
+from typing import NoReturn, cast
 
 from insanely_fast_whisper_rocm.core.asr_backend import HuggingFaceBackendConfig
 from insanely_fast_whisper_rocm.core.backend_cache import borrow_pipeline
@@ -51,7 +51,7 @@ def get_asr_pipeline(
     # if this function is used incorrectly as a dependency with `Form` params.  Make
     # the function robust by extracting the `.default` attribute when a parameter is
     # a FastAPI param instance.
-    def _normalize(value: object, default: object | None = None) -> object:
+    def _normalize(value: object, default: object) -> object:
         """Normalize a FastAPI parameter to its default value if applicable.
 
         Args:
@@ -68,12 +68,37 @@ def get_asr_pipeline(
             return getattr(value, "default", default)
         return value
 
+    def _normalize_str(value: object, default: str) -> str:
+        """Return a normalized string value.
+
+        Args:
+            value: Value that may be a FastAPI parameter placeholder.
+            default: Fallback value to use when the parameter has no default.
+
+        Returns:
+            A string suitable for backend configuration.
+        """
+        return cast(str, _normalize(value, default))
+
+    def _normalize_int(value: object, default: int) -> int:
+        """Return a normalized integer value.
+
+        Args:
+            value: Value that may be a FastAPI parameter placeholder.
+            default: Fallback value to use when the parameter has no default.
+
+        Returns:
+            An integer suitable for backend configuration.
+        """
+        normalized = _normalize(value, default)
+        return int(cast(int | str, normalized))
+
     backend_config = HuggingFaceBackendConfig(
-        model_name=_normalize(model, DEFAULT_MODEL),
-        device=_normalize(device, DEFAULT_DEVICE),
-        dtype=_normalize(dtype, "float16"),
-        batch_size=int(_normalize(batch_size, DEFAULT_BATCH_SIZE)),
-        chunk_length=int(_normalize(model_chunk_length, DEFAULT_CHUNK_LENGTH)),
+        model_name=_normalize_str(model, DEFAULT_MODEL),
+        device=_normalize_str(device, DEFAULT_DEVICE),
+        dtype=_normalize_str(dtype, "float16"),
+        batch_size=_normalize_int(batch_size, DEFAULT_BATCH_SIZE),
+        chunk_length=_normalize_int(model_chunk_length, DEFAULT_CHUNK_LENGTH),
         progress_group_size=constants.DEFAULT_PROGRESS_GROUP_SIZE,
     )
     # Acquire cached pipeline and ensure release after request via FastAPI

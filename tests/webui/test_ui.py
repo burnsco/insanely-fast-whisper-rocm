@@ -15,7 +15,9 @@ from insanely_fast_whisper_rocm.webui.ui import (
     _create_processing_options_ui,
     _create_stabilization_ui,
     _create_task_config_ui,
+    _parse_optional_float,
     _process_transcription_request_wrapper,
+    _toggle_stabilization_advanced,
     create_ui_components,
 )
 
@@ -90,39 +92,93 @@ class TestCreateProcessingOptionsUI:
 class TestCreateStabilizationUI:
     """Test suite for _create_stabilization_ui function."""
 
-    def test_create_stabilization_ui__returns_four_components(self) -> None:
+    def test_create_stabilization_ui__returns_all_components(self) -> None:
         """Test that _create_stabilization_ui returns all controls."""
         with gr.Blocks():
-            stabilize, demucs, vad, vad_threshold = _create_stabilization_ui()
+            (
+                stabilize,
+                demucs,
+                vad,
+                vad_threshold,
+                suppress_ts_tokens,
+                gap_padding,
+                adjust_gaps,
+                nonspeech_skip,
+                advanced_stabilization,
+            ) = _create_stabilization_ui()
 
             assert isinstance(stabilize, gr.Checkbox)
             assert isinstance(demucs, gr.Checkbox)
             assert isinstance(vad, gr.Checkbox)
             assert isinstance(vad_threshold, gr.Slider)
+            assert isinstance(suppress_ts_tokens, gr.Checkbox)
+            assert isinstance(gap_padding, gr.Textbox)
+            assert isinstance(adjust_gaps, gr.Checkbox)
+            assert isinstance(nonspeech_skip, gr.Textbox)
+            assert isinstance(advanced_stabilization, gr.Accordion)
 
     def test_create_stabilization_ui__uses_custom_defaults(self) -> None:
         """Test that _create_stabilization_ui uses provided defaults."""
         with gr.Blocks():
-            stabilize, demucs, vad, vad_threshold = _create_stabilization_ui(
+            (
+                stabilize,
+                demucs,
+                vad,
+                vad_threshold,
+                suppress_ts_tokens,
+                gap_padding,
+                adjust_gaps,
+                nonspeech_skip,
+                advanced_stabilization,
+            ) = _create_stabilization_ui(
                 default_stabilize=True,
                 default_demucs=True,
                 default_vad=True,
                 default_vad_threshold=0.5,
+                default_suppress_ts_tokens=False,
+                default_gap_padding=" pad ",
+                default_adjust_gaps=False,
+                default_nonspeech_skip=1.5,
             )
 
             assert stabilize.value is True
             assert demucs.value is True
             assert vad.value is True
             assert vad_threshold.value == 0.5
+            assert suppress_ts_tokens.value is False
+            assert gap_padding.value == " pad "
+            assert adjust_gaps.value is False
+            assert nonspeech_skip.value == "1.5"
+            assert advanced_stabilization.visible is True
 
     def test_create_stabilization_ui__vad_threshold_range(self) -> None:
         """Test that vad_threshold slider has correct range."""
         with gr.Blocks():
-            _, _, _, vad_threshold = _create_stabilization_ui()
+            _, _, _, vad_threshold, *_rest = _create_stabilization_ui()
 
             assert vad_threshold.minimum == 0.1
             assert vad_threshold.maximum == 0.9
             assert vad_threshold.step == 0.05
+
+
+class TestStabilizationHelpers:
+    """Test suite for WebUI stabilization helper functions."""
+
+    def test_parse_optional_float__blank_returns_none(self) -> None:
+        """Blank input should disable optional float settings."""
+        assert _parse_optional_float("") is None
+        assert _parse_optional_float("   ") is None
+        assert _parse_optional_float(None) is None
+
+    def test_parse_optional_float__numeric_values_parse(self) -> None:
+        """Numeric values should be converted to float."""
+        assert _parse_optional_float("1.25") == 1.25
+        assert _parse_optional_float(2) == 2.0
+
+    def test_toggle_stabilization_advanced__updates_visibility(self) -> None:
+        """Visibility helper should mirror the stabilize checkbox state."""
+        assert _toggle_stabilization_advanced(True)["visible"] is True
+        assert _toggle_stabilization_advanced(False)["visible"] is False
 
 
 class TestCreateTaskConfigUI:
@@ -204,6 +260,10 @@ class TestProcessTranscriptionRequestWrapper:
             demucs=False,
             vad=True,
             vad_threshold=0.35,
+            suppress_ts_tokens=False,
+            gap_padding=" pre-roll ",
+            adjust_gaps=False,
+            nonspeech_skip="1.2",
             save_transcriptions=True,
             temp_uploads_dir="/tmp/test",
             progress=None,
@@ -227,6 +287,10 @@ class TestProcessTranscriptionRequestWrapper:
         assert transcription_cfg.demucs is False
         assert transcription_cfg.vad is True
         assert transcription_cfg.vad_threshold == 0.35
+        assert transcription_cfg.suppress_ts_tokens is False
+        assert transcription_cfg.gap_padding == " pre-roll "
+        assert transcription_cfg.adjust_gaps is False
+        assert transcription_cfg.nonspeech_skip == 1.2
 
         # Check file handling config
         file_handling_cfg = call_args.kwargs["file_handling_config"]
@@ -257,6 +321,10 @@ class TestProcessTranscriptionRequestWrapper:
             demucs=False,
             vad=False,
             vad_threshold=0.35,
+            suppress_ts_tokens=True,
+            gap_padding=" ...",
+            adjust_gaps=True,
+            nonspeech_skip="",
             save_transcriptions=True,
             temp_uploads_dir="/tmp/test",
             progress=None,
@@ -285,6 +353,10 @@ class TestProcessTranscriptionRequestWrapper:
             demucs=False,
             vad=False,
             vad_threshold=0.35,
+            suppress_ts_tokens=True,
+            gap_padding=" ...",
+            adjust_gaps=True,
+            nonspeech_skip="",
             save_transcriptions=True,
             temp_uploads_dir="/tmp/test",
             progress=progress_tracker,
@@ -350,6 +422,11 @@ class TestCreateUIComponents:
             gr.Checkbox(),
             gr.Checkbox(),
             gr.Slider(0, 1),
+            gr.Checkbox(),
+            gr.Textbox(),
+            gr.Checkbox(),
+            gr.Textbox(),
+            gr.Accordion(),
         )
         mock_task_config.return_value = (gr.Radio(), gr.Textbox(), gr.Radio())
         mock_file_handling.return_value = (gr.Checkbox(), gr.Textbox())
@@ -360,6 +437,10 @@ class TestCreateUIComponents:
             default_demucs=False,
             default_vad=True,
             default_vad_threshold=0.4,
+            default_suppress_ts_tokens=False,
+            default_gap_padding=" pad ",
+            default_adjust_gaps=False,
+            default_nonspeech_skip=1.0,
         )
 
         # Verify all helpers were called
@@ -370,6 +451,10 @@ class TestCreateUIComponents:
             default_demucs=False,
             default_vad=True,
             default_vad_threshold=0.4,
+            default_suppress_ts_tokens=False,
+            default_gap_padding=" pad ",
+            default_adjust_gaps=False,
+            default_nonspeech_skip=1.0,
         )
         mock_task_config.assert_called_once()
         mock_file_handling.assert_called_once()

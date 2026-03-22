@@ -1,50 +1,42 @@
-# Use an official Python runtime as a parent image
-FROM python:3.10-slim
+# Use AMD's validated ROCm 7.2 PyTorch runtime for Python 3.10.
+FROM rocm/pytorch:rocm7.2_ubuntu22.04_py3.10_pytorch_release_2.9.1
 
-LABEL org.opencontainers.image.source https://github.com/beecave-homelab/insanely-fast-whisper-rocm
+LABEL org.opencontainers.image.source https://github.com/burnsco/insanely-fast-whisper-rocm
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=off
 ENV TZ=Europe/Amsterdam
 ENV ROCM_PATH=/opt/rocm
-ENV HSA_OVERRIDE_GFX_VERSION=10.3.0
+ENV PATH="/app/.venv/bin:${PATH}"
 
-# Install specific packages using pip
-RUN apt-get update -y && apt-get upgrade -y && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \ 
+# Install OS-level dependencies required by the media pipeline.
+RUN apt-get update -y && apt-get upgrade -y && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ffmpeg \
+    libsndfile1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN pip install --no-cache-dir uv
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy requirements file for installing dependencies
-# COPY requirements-rocm-v6-4-1.txt .
-COPY requirements-rocm-v7-0.txt .
-COPY .python-version .
-
-# Install project dependencies using pip
-RUN pip install --no-cache-dir -r requirements-rocm-v7-0.txt
-
-# Copy the OpenAPI spec file
+# Copy the project metadata needed to install dependencies.
+COPY pyproject.toml /app/
+COPY uv.lock /app/
 COPY openapi.yaml /app/
 
-# Copy the application source code
-# This is needed for `pdm install` to build and install the local package.
-# It assumes your main package source is in the 'insanely_fast_whisper_rocm' directory.
-# Copy the application source code and project metadata
-COPY pyproject.toml /app/
+# Install only the application dependencies; torch/torchaudio come from the
+# validated ROCm base image.
+RUN uv sync --locked --no-dev --no-install-project
+
 COPY ./insanely_fast_whisper_rocm /app/insanely_fast_whisper_rocm/
 
-# Install the local package itself
-RUN pip install --no-cache-dir .
+RUN uv sync --locked --no-dev --no-editable
 
-# After `pip install .`, the package `insanely_fast_whisper_rocm` and its CLI/modules
-# should be available in the Python environment.
-
-# Added in case Gradio is used and needs to be accessible; remove if not needed.
 ENV GRADIO_SERVER_NAME="0.0.0.0"
+ENV TORCHAUDIO_USE_SOUNDFILE=1
 
 # Expose default internal ports (API/WebUI). Actual bindings are controlled by Compose.
 EXPOSE 8888

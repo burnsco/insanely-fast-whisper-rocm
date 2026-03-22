@@ -10,9 +10,13 @@ import click
 
 from insanely_fast_whisper_rocm.utils import constants
 from insanely_fast_whisper_rocm.utils.constants import (
+    DEFAULT_ADJUST_GAPS,
     DEFAULT_DEMUCS,
+    DEFAULT_GAP_PADDING,
     DEFAULT_MODEL,
+    DEFAULT_NONSPEECH_SKIP,
     DEFAULT_STABILIZE,
+    DEFAULT_SUPPRESS_TS_TOKENS,
     DEFAULT_VAD,
     DEFAULT_VAD_THRESHOLD,
 )
@@ -113,6 +117,10 @@ def launch_webui(
         default_demucs=demucs,
         default_vad=vad,
         default_vad_threshold=vad_threshold,
+        default_suppress_ts_tokens=DEFAULT_SUPPRESS_TS_TOKENS,
+        default_gap_padding=DEFAULT_GAP_PADDING,
+        default_adjust_gaps=DEFAULT_ADJUST_GAPS,
+        default_nonspeech_skip=DEFAULT_NONSPEECH_SKIP,
     )
 
     # Launch the interface

@@ -1,17 +1,20 @@
-# AGENTS.md — Coding Rules (Ruff + Pytest + SOLID)
+# AGENTS.md — Coding Rules (uv + Ruff + ty + Pytest + SOLID)
 
-This repository uses **Ruff** as the single source of truth for linting/formatting and **Pytest** (with **pytest-cov**) for tests & coverage. CI fails when these rules are violated.
+This repository uses **uv** for environment and dependency management, **Ruff** as the single source of truth for linting/formatting, **ty** for package type-checking, and **Pytest** (with **pytest-cov**) for tests & coverage. CI fails when these rules are violated.
 
 Run locally before committing:
 
 ```bash
 # Lint & format (Ruff)
-pdm run ruff check --fix .
-pdm run ruff format .
+uv run ruff check --fix .
+uv run ruff format .
+
+# Types (ty)
+uv run ty check insanely_fast_whisper_rocm
 
 # Tests & coverage (adjust --cov target if needed)
-pdm run pytest --maxfail=1 -q
-pdm run pytest --cov=. --cov-report=term-missing:skip-covered --cov-report=xml
+uv run pytest --maxfail=1 -q
+uv run pytest --cov=. --cov-report=term-missing:skip-covered --cov-report=xml
 ```
 
 When in doubt, prefer **correctness → clarity → consistency → brevity** (in that order).
@@ -256,10 +259,10 @@ def add(a: int, b: int) -> int:
 
 ```bash
 # Quick
-pdm run pytest -q
+uv run pytest -q
 
 # Coverage (adjust --cov target to your package or ".")
-pdm run pytest --cov=. --cov-report=term-missing:skip-covered --cov-report=xml
+uv run pytest --cov=. --cov-report=term-missing:skip-covered --cov-report=xml
 ```
 
 ### Coverage Policy — Threshold
@@ -321,11 +324,11 @@ repos:
 
 ```bash
 # Lint & format
-pdm run ruff check .
-pdm run ruff format --check .
+uv run ruff check .
+uv run ruff format --check .
 
 # Tests & coverage
-pdm run pytest --cov=. --cov-report=term-missing:skip-covered --cov-report=xml --maxfail=1
+uv run pytest --cov=. --cov-report=term-missing:skip-covered --cov-report=xml --maxfail=1
 ```
 
 ### Policy — CI Coverage
@@ -411,13 +414,16 @@ from __future__ import annotations
 from typing import Protocol
 import pathlib
 
+
 class Storage(Protocol):
     def write(self, path: pathlib.Path, data: bytes) -> None: ...
+
 
 class FileStorage:
     def write(self, path: pathlib.Path, data: bytes) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+
 
 class Uploader:
     """Upload artifacts using an injected Storage (DIP, OCP, ISP).
@@ -425,12 +431,14 @@ class Uploader:
     Args:
         storage: Minimal interface that supports 'write'.
     """
+
     def __init__(self, storage: Storage) -> None:
         self._storage = storage  # DIP
 
     def publish(self, dest: pathlib.Path, payload: bytes) -> None:
         # SRP: only orchestrates publication; no direct filesystem logic here.
         self._storage.write(dest, payload)
+
 
 # LSP test idea: any Storage conformer can be used transparently (FakeStorage, S3Storage, ...).
 ```
@@ -485,6 +493,7 @@ These rules standardize how environment variables are loaded and accessed across
 # <package>/utils/env_loader.py
 from __future__ import annotations
 import os
+
 
 def load_project_env() -> dict[str, str]:
     # Parse once: could expand to load .env, validate, coerce types, etc.

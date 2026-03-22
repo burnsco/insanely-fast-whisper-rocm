@@ -15,15 +15,22 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from insanely_fast_whisper_rocm.core.asr_backend import ASRBackend
+from insanely_fast_whisper_rocm.core.asr_backend import (
+    ASRBackend,
+    HuggingFaceBackendConfig,
+)
 from insanely_fast_whisper_rocm.core.cancellation import CancellationToken
 from insanely_fast_whisper_rocm.core.errors import (
     DeviceNotFoundError,
     TranscriptionError,
 )
-from insanely_fast_whisper_rocm.core.pipeline import BasePipeline
+from insanely_fast_whisper_rocm.core.pipeline import (
+    ASRTask,
+    BasePipeline,
+    TimestampType,
+)
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
 
 
@@ -38,14 +45,22 @@ class _DummyBackend(ASRBackend):
         self.model_name = model_name
         self.device = device
         self.dtype = dtype
+        self.config = HuggingFaceBackendConfig(
+            model_name=model_name,
+            device=device,
+            dtype=dtype,
+            batch_size=1,
+            chunk_length=30,
+            progress_group_size=1,
+        )
 
     # pylint: disable=unused-argument
     def process_audio(
         self,
         audio_file_path: str,
         language: str | None,
-        task: str,
-        return_timestamps_value: bool | str,
+        task: Literal["transcribe", "translate"],
+        return_timestamps_value: bool | Literal["word"],
         progress_cb: ProgressCallback | None = None,
         cancellation_token: CancellationToken | None = None,
     ) -> dict[str, Any]:
@@ -73,7 +88,7 @@ class _DummyBackend(ASRBackend):
         }
 
 
-class ASRPipeline(BasePipeline):  # type: ignore[misc]
+class ASRPipeline(BasePipeline):
     """Lightweight wrapper that mimics the public ASRPipeline interface.
 
     The implementation purposefully shortcuts the heavy Whisper dependency
@@ -122,8 +137,8 @@ class ASRPipeline(BasePipeline):  # type: ignore[misc]
         self,
         audio_file_path: str,
         language: str | None = None,
-        task: str = "transcribe",
-        timestamp_type: str = "chunk",
+        task: Literal["transcribe", "translate"] = "transcribe",
+        timestamp_type: Literal["chunk", "word"] = "chunk",
         progress_callback: Callable[[str, int, int, str | None], None] | None = None,
         **kwargs: object,
     ) -> dict[str, Any]:
@@ -158,7 +173,7 @@ class ASRPipeline(BasePipeline):  # type: ignore[misc]
     # The three abstract methods are trivial for the dummy backend.
 
     # pylint: disable=unused-argument
-    def _prepare_input(self, audio_file_path: Path) -> str:  # type: ignore[override]
+    def _prepare_input(self, audio_file_path: Path) -> str:
         """Prepare audio input for the dummy backend.
 
         Args:
@@ -176,14 +191,14 @@ class ASRPipeline(BasePipeline):  # type: ignore[misc]
         return result
 
     # pylint: disable=unused-argument
-    def _execute_asr(  # type: ignore[override]
+    def _execute_asr(
         self,
         prepared_data: str,
         language: str | None,
-        task: str,
-        timestamp_type: str,
-        progress_callback: Callable[[str], None] | None = None,
-        cancellation_token: CancellationToken | None = None,
+        task: ASRTask,
+        timestamp_type: TimestampType,
+        progress_callback: ProgressCallback,
+        cancellation_token: CancellationToken | None,
     ) -> dict[str, Any]:
         """Return a canned transcription result from the dummy backend.
 
@@ -209,11 +224,11 @@ class ASRPipeline(BasePipeline):  # type: ignore[misc]
         )
 
     # pylint: disable=unused-argument
-    def _postprocess_output(  # type: ignore[override]
+    def _postprocess_output(
         self,
         asr_output: dict[str, Any],
         audio_file_path: Path,
-        task: str,
+        task: Literal["transcribe", "translate"],
         original_filename: str | None = None,
     ) -> dict[str, Any]:
         """Return the ASR output unchanged for the dummy backend.

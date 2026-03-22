@@ -9,6 +9,7 @@ import logging.config
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import click
 import yaml
@@ -21,7 +22,7 @@ except ImportError:
     # uvicorn is only needed when running the server, not for all imports
     # This allows other parts of the package to import __main__ if necessary
     # without uvicorn being a hard dependency for all CLI commands.
-    uvicorn = None
+    uvicorn: Any | None = None
 
 
 def setup_timezone() -> None:

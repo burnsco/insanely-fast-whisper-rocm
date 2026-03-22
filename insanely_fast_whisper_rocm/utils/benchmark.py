@@ -12,10 +12,12 @@ import logging
 import platform
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 from insanely_fast_whisper_rocm.utils.filename_generator import (
     FilenameGenerator,
@@ -27,26 +29,19 @@ logger = logging.getLogger(__name__)
 
 
 try:
-    import psutil  # type: ignore
+    import psutil
 except ImportError:  # pragma: no cover
-    psutil = None  # type: ignore
+    psutil: Any | None = None
 
 try:
-    import torch  # type: ignore
+    import torch
 except ImportError:  # pragma: no cover
-    torch = None  # type: ignore
+    torch: Any | None = None
 
 try:
-    import pyamdgpuinfo  # type: ignore
+    import pyamdgpuinfo
 except ImportError:  # pragma: no cover
-    pyamdgpuinfo = None  # type: ignore
-
-try:
-    from pydantic import BaseModel, ConfigDict  # type: ignore
-except ImportError:  # pragma: no cover
-    # The core package already depends on pydantic; but guard just in case
-    BaseModel = object  # type: ignore[assignment]
-    ConfigDict = dict  # type: ignore[misc,assignment]
+    pyamdgpuinfo: Any | None = None
 
 __all__ = [
     "BenchmarkResult",
@@ -54,7 +49,7 @@ __all__ = [
 ]
 
 
-class BenchmarkResult(BaseModel):  # type: ignore[misc]
+class BenchmarkResult(BaseModel):
     """Schema for benchmark JSON file."""
 
     timestamp: str  # ISO8601
@@ -245,6 +240,9 @@ class BenchmarkCollector:
 
         Returns:
             Path: The path to the JSON file that was written.
+
+        Raises:
+            RuntimeError: If the benchmark result cannot be serialized to JSON.
         """
         # Ensure sampling thread stopped
         self.stop_sampling()
@@ -281,7 +279,7 @@ class BenchmarkCollector:
             }
 
         result = BenchmarkResult(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             model=(config or {}).get("model"),
             device=(config or {}).get("device"),
             batch_size=(config or {}).get("batch_size"),
@@ -315,13 +313,18 @@ class BenchmarkCollector:
         path = self._bench_dir / filename
 
         # Serialize the Pydantic model in a way that works for both Pydantic v1 and v2.
-        try:
-            # Pydantic v2 preferred API
-            json_str: str = result.model_dump_json(indent=2)  # type: ignore[attr-defined]
-        except AttributeError:  # Fallback to Pydantic v1
-            json_str = result.json(indent=2)  # type: ignore[call-arg]
+        json_dump = getattr(result, "model_dump_json", None)
+        if callable(json_dump):
+            json_str = json_dump(indent=2)
+        else:
+            legacy_json_dump = getattr(result, "json", None)
+            if not callable(legacy_json_dump):
+                raise RuntimeError(
+                    "BenchmarkResult does not expose a supported JSON serializer."
+                )
+            json_str = legacy_json_dump(indent=2)
 
-        path.write_text(json_str, encoding="utf-8")  # type: ignore[arg-type]
+        path.write_text(json_str, encoding="utf-8")
         return path
 
     # ------------------------------------------------------------------
@@ -339,10 +342,10 @@ class BenchmarkCollector:
             "python_version": platform.python_version(),
         }
         if torch is not None:
-            data["torch_version"] = torch.__version__  # type: ignore[attr-defined]
+            data["torch_version"] = torch.__version__
 
         if psutil is not None:
-            vm = psutil.virtual_memory()  # type: ignore[attr-defined]
+            vm = psutil.virtual_memory()
             data.update({
                 "ram_total_mb": round(vm.total / 1024**2, 2),
                 "ram_used_mb": round(vm.used / 1024**2, 2),
@@ -353,19 +356,19 @@ class BenchmarkCollector:
     def _collect_gpu_metrics() -> dict[str, Any] | None:
         """Return AMD GPU statistics if `pyamdgpuinfo` is installed."""
         # Try CUDA first
-        if torch is not None and torch.cuda.is_available():  # type: ignore[attr-defined]
+        if torch is not None and torch.cuda.is_available():
             try:
-                device_idx = torch.cuda.current_device()  # type: ignore[attr-defined]
+                device_idx = torch.cuda.current_device()
                 return {
-                    "name": torch.cuda.get_device_name(device_idx),  # type: ignore[attr-defined]
+                    "name": torch.cuda.get_device_name(device_idx),
                     "total_vram_mb": round(
                         torch.cuda.get_device_properties(device_idx).total_memory
                         / 1024**2,
                         2,
-                    ),  # type: ignore[attr-defined]
+                    ),
                     "vram_used_mb": round(
                         torch.cuda.memory_allocated(device_idx) / 1024**2, 2
-                    ),  # type: ignore[attr-defined]
+                    ),
                 }
             except Exception:  # pragma: no cover
                 pass
@@ -374,7 +377,10 @@ class BenchmarkCollector:
         if pyamdgpuinfo is None:
             return None
         try:
-            cards = pyamdgpuinfo.get_cards()  # type: ignore[attr-defined]
+            get_cards = getattr(pyamdgpuinfo, "get_cards", None)
+            if not callable(get_cards):
+                return None
+            cards = get_cards()
             if not cards:
                 return None
             card = cards[0]

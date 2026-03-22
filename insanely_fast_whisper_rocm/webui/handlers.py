@@ -32,12 +32,16 @@ from insanely_fast_whisper_rocm.core.integrations.stable_ts import stabilize_tim
 from insanely_fast_whisper_rocm.core.orchestrator import create_orchestrator
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
 from insanely_fast_whisper_rocm.utils import (
+    DEFAULT_ADJUST_GAPS,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DEMUCS,
     DEFAULT_DEVICE,
+    DEFAULT_GAP_PADDING,
     DEFAULT_LANGUAGE,
     DEFAULT_MODEL,
+    DEFAULT_NONSPEECH_SKIP,
     DEFAULT_STABILIZE,
+    DEFAULT_SUPPRESS_TS_TOKENS,
     DEFAULT_TIMESTAMP_TYPE,
     DEFAULT_TRANSCRIPTS_DIR,
     DEFAULT_VAD,
@@ -85,6 +89,10 @@ class TranscriptionConfig:  # pylint: disable=too-many-instance-attributes
     demucs: bool = DEFAULT_DEMUCS
     vad: bool = DEFAULT_VAD
     vad_threshold: float = DEFAULT_VAD_THRESHOLD
+    suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS
+    gap_padding: str = DEFAULT_GAP_PADDING
+    adjust_gaps: bool = DEFAULT_ADJUST_GAPS
+    nonspeech_skip: float | None = DEFAULT_NONSPEECH_SKIP
 
 
 @dataclass
@@ -632,6 +640,10 @@ def transcribe(
                     demucs=config.demucs,
                     vad=config.vad,
                     vad_threshold=config.vad_threshold,
+                    suppress_ts_tokens=config.suppress_ts_tokens,
+                    gap_padding=config.gap_padding,
+                    adjust_gaps=config.adjust_gaps,
+                    nonspeech_skip=config.nonspeech_skip,
                     progress_cb=_stab_progress,
                 )
             finally:

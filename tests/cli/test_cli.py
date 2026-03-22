@@ -808,7 +808,7 @@ class TestVideoProcessing:
             assert result.exit_code == 0
 
             # Verify video extraction was called
-            mock_extract.assert_called_once_with(video_path=tmp_path)
+            mock_extract.assert_called_once_with(video_path=str(tmp_path))
 
             # Verify audio processing was called with extracted audio
             mock_process.assert_called_once()
@@ -820,6 +820,34 @@ class TestVideoProcessing:
             # Clean up the extracted audio file mock
             if Path("extracted_audio.wav").exists():
                 Path("extracted_audio.wav").unlink(missing_ok=True)
+
+    @patch("insanely_fast_whisper_rocm.cli.commands.extract_audio_from_video")
+    @patch("insanely_fast_whisper_rocm.cli.commands.cli_facade.process_audio")
+    def test_video_file_extraction_converts_string_path_to_path_object(
+        self, mock_process: Mock, mock_extract: Mock
+    ) -> None:
+        """Normalize string extraction paths back to ``Path`` objects."""
+        mock_extract.return_value = "extracted_audio.wav"
+        mock_process.return_value = {
+            "text": "Video transcription",
+            "chunks": [],
+            "runtime_seconds": 2.0,
+        }
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+            tmp_path = Path(tmp_file.name)
+
+        try:
+            result = self.runner.invoke(
+                cli, ["transcribe", str(tmp_path), "--device", "cpu"]
+            )
+            assert result.exit_code == 0
+
+            mock_process.assert_called_once()
+            call_args = mock_process.call_args[1]
+            assert call_args["audio_file_path"] == Path("extracted_audio.wav")
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
 
 class TestQuietMode:

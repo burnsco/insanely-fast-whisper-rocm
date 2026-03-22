@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    image: ghcr.io/beecave-homelab/insanely-fast-whisper-rocm:main
+    image: ghcr.io/burnsco/insanely-fast-whisper-rocm:main
     container_name: insanely-fast-whisper-rocm
     restart: unless-stopped
 

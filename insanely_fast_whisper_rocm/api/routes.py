@@ -8,6 +8,7 @@ import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 
 from insanely_fast_whisper_rocm.api.dependencies import (
     get_asr_pipeline,
@@ -32,6 +33,27 @@ from insanely_fast_whisper_rocm.utils import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+TimestampType = Literal["chunk", "word"]
+
+
+def _parse_timestamp_type(timestamp_type: str) -> TimestampType:
+    """Validate and narrow the requested timestamp type.
+
+    Args:
+        timestamp_type: Raw timestamp type from the request payload.
+
+    Returns:
+        The validated timestamp type literal.
+
+    Raises:
+        HTTPException: If the value is unsupported.
+    """
+    if timestamp_type not in ("chunk", "word"):
+        raise HTTPException(status_code=400, detail="Unsupported timestamp_type")
+    if timestamp_type == "chunk":
+        return "chunk"
+    return "word"
 
 
 @router.post(
@@ -79,7 +101,7 @@ async def create_transcription(
     ),
     asr_pipeline: WhisperPipeline = Depends(get_asr_pipeline),  # noqa: B008
     file_handler: FileHandler = Depends(get_file_handler),  # noqa: B008
-) -> str | dict:
+) -> Response:
     """Transcribe speech in an audio file to text.
 
     This endpoint processes an audio file and returns its transcription using the
@@ -132,13 +154,15 @@ async def create_transcription(
         # the starting point.
         base_config = asr_pipeline.asr_backend.config
 
+        parsed_timestamp_type = _parse_timestamp_type(timestamp_type)
+
         try:
             result = orchestrator.run_transcription(
                 audio_path=temp_filepath,
                 backend_config=base_config,
                 language=language,
                 task=task,
-                timestamp_type=timestamp_type,
+                timestamp_type=parsed_timestamp_type,
             )
         except OutOfMemoryError as oom:
             raise HTTPException(
@@ -216,7 +240,7 @@ async def create_translation(
     ),
     asr_pipeline: WhisperPipeline = Depends(get_asr_pipeline),  # noqa: B008
     file_handler: FileHandler = Depends(get_file_handler),  # noqa: B008
-) -> str | dict:
+) -> Response:
     """Translate speech in an audio file to English.
 
     This endpoint processes an audio file in any supported language and translates
@@ -259,13 +283,15 @@ async def create_translation(
         orchestrator = create_orchestrator()
         base_config = asr_pipeline.asr_backend.config
 
+        parsed_timestamp_type = _parse_timestamp_type(timestamp_type)
+
         try:
             result = orchestrator.run_transcription(
                 audio_path=temp_filepath,
                 backend_config=base_config,
                 language=language,
                 task="translate",
-                timestamp_type=timestamp_type,
+                timestamp_type=parsed_timestamp_type,
             )
         except OutOfMemoryError as oom:
             raise HTTPException(

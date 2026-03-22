@@ -15,7 +15,7 @@ import sys
 import time
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import click
 from click.core import ParameterSource
@@ -48,7 +48,7 @@ try:
     from insanely_fast_whisper_rocm.core.integrations import stabilize_timestamps
 except ModuleNotFoundError:  # pragma: no cover
 
-    def stabilize_timestamps(  # type: ignore[no-redef]
+    def stabilize_timestamps(
         result: dict[str, Any],
         *,
         demucs: bool = False,
@@ -288,7 +288,7 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
     if audio_file.suffix.lower() in constants.SUPPORTED_VIDEO_FORMATS:
         try:
             reporter.on_postprocess_started("extract-audio")
-            audio_file = extract_audio_from_video(video_path=audio_file)
+            audio_file = Path(extract_audio_from_video(video_path=str(audio_file)))
             temp_files.append(audio_file)
         finally:
             reporter.on_postprocess_finished("extract-audio")
@@ -299,9 +299,15 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
     # Execute the ASR backend via the facade                              #
     # ------------------------------------------------------------------ #
     try:
+        typed_task: Literal["transcribe", "translate"] = (
+            "translate" if task == "translate" else "transcribe"
+        )
+        typed_timestamp_type: Literal["chunk", "word"] = (
+            "word" if timestamp_type == "word" else "chunk"
+        )
         return_timestamps_value = False
         if not no_timestamps:
-            return_timestamps_value = timestamp_type
+            return_timestamps_value = typed_timestamp_type
 
         # Configuration details logged by facade at INFO level
         _ensure_not_cancelled()
@@ -314,7 +320,7 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
             chunk_length=chunk_length,
             progress_group_size=progress_group_size,
             language=processed_language,
-            task=task,
+            task=typed_task,
             return_timestamps_value=return_timestamps_value,
             progress_cb=reporter,
             cancellation_token=cancellation_token,
@@ -609,7 +615,6 @@ def _handle_output_and_benchmarks(
     # Export progress
     try:
         if progress_cb is not None:
-            # type: ignore[attr-defined]
             progress_cb.on_export_started(len(formats_to_export))
     except Exception:  # pragma: no cover
         pass
@@ -662,7 +667,6 @@ def _handle_output_and_benchmarks(
         else:
             try:
                 if progress_cb is not None:
-                    # type: ignore[attr-defined]
                     # Provide full context to tqdm reporter when single item
                     # using the convention "FMT::/full/path" so it can print
                     # a concise checkmark instead of showing a bar.

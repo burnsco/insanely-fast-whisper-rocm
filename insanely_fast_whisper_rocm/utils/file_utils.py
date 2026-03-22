@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import uuid
+from collections.abc import Sequence
 
 from fastapi import HTTPException, UploadFile
 
@@ -25,7 +26,8 @@ def validate_audio_file(file: UploadFile) -> None:
     Raises:
         HTTPException: If the file format is not supported
     """
-    file_ext = os.path.splitext(file.filename.lower())[1]
+    filename = file.filename or ""
+    file_ext = os.path.splitext(filename.lower())[1]
     if file_ext not in SUPPORTED_AUDIO_FORMATS:
         raise HTTPException(
             status_code=400,
@@ -63,18 +65,19 @@ def save_upload_file(file: UploadFile) -> str:
         ) from e
 
 
-def cleanup_temp_files(file_paths: list[str]) -> None:
+def cleanup_temp_files(file_paths: Sequence[str | os.PathLike[str]]) -> None:
     """Clean up temporary files.
 
     Args:
         file_paths: List of file paths to delete.
     """
     for file_path in file_paths:
+        file_path_str = os.fspath(file_path)
         try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
+            if os.path.isfile(file_path_str):
+                os.unlink(file_path_str)
             # Try to remove parent directory if it's empty
-            dir_path = os.path.dirname(file_path)
+            dir_path = os.path.dirname(file_path_str)
             # Ensure we only attempt to remove directories from the designated
             # UPLOAD_DIR or a tempfile.gettempdir() and that the directory is
             # indeed empty.

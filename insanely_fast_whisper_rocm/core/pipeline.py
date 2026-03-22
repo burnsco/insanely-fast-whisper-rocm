@@ -7,6 +7,7 @@ import logging
 import time
 import uuid
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +33,9 @@ from insanely_fast_whisper_rocm.utils.filename_generator import (
 logger = logging.getLogger(__name__)
 
 InputType = TypeVar("InputType")
+EventListener = Callable[["ProgressEvent"], None]
+ASRTask = Literal["transcribe", "translate"]
+TimestampType = Literal["chunk", "word"] | bool
 
 # ---------------------------------------------------------------------------
 # Lightweight configuration/result dataclasses for test compatibility
@@ -95,18 +99,18 @@ class BasePipeline(ABC):
         )
         self.save_transcriptions = save_transcriptions
         self.output_dir = Path(output_dir)
-        self._listeners: list[ProgressCallback] = []
+        self._listeners: list[EventListener] = []
         self.pipeline_id = str(uuid.uuid4())
         # Initialize filename generator with standard strategy
         self._filename_generator = FilenameGenerator(
             strategy=StandardFilenameStrategy()
         )
 
-    def add_listener(self, callback: ProgressCallback) -> None:
+    def add_listener(self, callback: EventListener) -> None:
         """Registers an observer for progress events."""
         self._listeners.append(callback)
 
-    def remove_listener(self, callback: ProgressCallback) -> None:
+    def remove_listener(self, callback: EventListener) -> None:
         """Remove a previously registered progress listener if present."""
         try:
             self._listeners.remove(callback)
@@ -125,8 +129,8 @@ class BasePipeline(ABC):
         self,
         audio_file_path: str,
         language: str | None,
-        task: Literal["transcribe", "translate"],
-        timestamp_type: Literal["chunk", "word"] | bool,
+        task: ASRTask,
+        timestamp_type: TimestampType,
         original_filename: str | None = None,
         progress_callback: ProgressCallback | None = None,
         cancellation_token: CancellationToken | None = None,
@@ -261,8 +265,8 @@ class BasePipeline(ABC):
         self,
         prepared_data: InputType,
         language: str | None,
-        task: str,
-        timestamp_type: str | bool,
+        task: ASRTask,
+        timestamp_type: TimestampType,
         progress_callback: ProgressCallback,
         cancellation_token: CancellationToken | None,
     ) -> dict[str, Any]:
@@ -273,7 +277,7 @@ class BasePipeline(ABC):
         self,
         asr_output: dict[str, Any],
         audio_file_path: Path,
-        task: str,
+        task: ASRTask,
         original_filename: str | None = None,
     ) -> dict[str, Any]:
         """Post-process ASR output (for example, format and add metadata).
@@ -286,7 +290,7 @@ class BasePipeline(ABC):
         self,
         result: dict[str, Any],
         audio_file_path: Path,
-        task: str,
+        task: ASRTask,
         original_filename: str | None = None,
     ) -> str | None:
         """Saves the transcription result using the storage backend.
@@ -385,8 +389,8 @@ class WhisperPipeline(BasePipeline):
         self,
         prepared_data: str,  # This is the audio_file_path from _prepare_input
         language: str | None,
-        task: str,
-        timestamp_type: str | bool,
+        task: ASRTask,
+        timestamp_type: TimestampType,
         progress_callback: ProgressCallback,
         cancellation_token: CancellationToken | None,
     ) -> dict[str, Any]:
@@ -493,7 +497,7 @@ class WhisperPipeline(BasePipeline):
                 """Suppress completion events from the backend."""
                 return
 
-        progress_proxy = _ProgressProxy(progress_callback)
+        progress_proxy = cast(ProgressCallback, _ProgressProxy(progress_callback))
 
         try:
             for idx, (chunk_path, chunk_start_time) in enumerate(chunk_data, start=1):
@@ -556,7 +560,7 @@ class WhisperPipeline(BasePipeline):
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
                     if hasattr(torch, "mps") and torch.backends.mps.is_available():
-                        torch.mps.empty_cache()  # type: ignore[attr-defined]
+                        torch.mps.empty_cache()
                 except Exception:  # pragma: no cover - defensive cleanup
                     pass
 
@@ -610,7 +614,7 @@ class WhisperPipeline(BasePipeline):
         self,
         asr_output: dict[str, Any],
         audio_file_path: Path,
-        task: str,
+        task: ASRTask,
         original_filename: str | None = None,
     ) -> dict[str, Any]:
         """Post-processes the raw ASR output for Whisper.
