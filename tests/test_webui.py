@@ -111,7 +111,7 @@ def test_webui_transcription() -> None:
                     "float16",  # dtype
                     30,  # chunk_length
                     True,  # save_transcriptions
-                    "transcripts",  # temp_uploads_dir
+                    "data/transcripts",  # temp_uploads_dir
                 ])
             },
             timeout=60,
@@ -164,7 +164,7 @@ def test_long_audio_transcription() -> None:
                     "float16",  # dtype
                     30,  # chunk_length
                     True,  # save_transcriptions
-                    "transcripts",  # temp_uploads_dir
+                    "data/transcripts",  # temp_uploads_dir
                 ])
             },
             timeout=300,  # Longer timeout for the longer audio file
@@ -212,7 +212,7 @@ def test_export_formats() -> None:
                     "float16",  # dtype
                     30,  # chunk_length
                     True,  # save_transcriptions
-                    "transcripts",  # temp_uploads_dir
+                    "data/transcripts",  # temp_uploads_dir
                 ])
             },
             timeout=60,

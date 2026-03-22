@@ -73,22 +73,12 @@ target/
 # Uploads directory
 uploads/
 data/
+!data/**/.gitkeep
 !tests/data/
 !tests/data/sample.mp4
-test_media/
 
 # Test directory
 tests/*.mp3
-transcripts/*.json
-transcripts/*.txt
-transcripts/*.zip
-transcripts/*.srt
-transcripts-srt/*.srt
-transcripts-txt/*.txt
-temp_uploads/*
-
-# Benchmarks output
-benchmarks/*.json
 
 .env
 .DS_Store

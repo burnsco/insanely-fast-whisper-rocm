@@ -21,13 +21,13 @@ x-rocm-dev-service: &rocm-dev-service
   env_file:
     - ${HOME}/.config/insanely-fast-whisper-rocm/.env
   volumes:
-    - ./insanely_fast_whisper_rocm:/app/insanely_fast_whisper_rocm
+    - ./src/insanely_fast_whisper_rocm:/app/src/insanely_fast_whisper_rocm
     - ./tests:/app/tests
     - ./scripts:/app/scripts
-    - ./transcripts:/app/transcripts
-    - ./transcripts-txt:/app/transcripts-txt
-    - ./transcripts-srt:/app/transcripts-srt
-    - ./temp_uploads:/app/temp_uploads
+    - ./data/transcripts:/app/data/transcripts
+    - ./data/transcripts-txt:/app/data/transcripts-txt
+    - ./data/transcripts-srt:/app/data/transcripts-srt
+    - ./data/temp_uploads:/app/data/temp_uploads
     - ${HOME}/.cache/huggingface/hub:/root/.cache/huggingface/hub
 
 services:

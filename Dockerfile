@@ -28,7 +28,7 @@ FROM base AS runtime
 
 RUN uv sync --locked --extra rocm --no-dev --no-install-project
 
-COPY insanely_fast_whisper_rocm /app/insanely_fast_whisper_rocm
+COPY src /app/src
 
 RUN uv sync --locked --extra rocm --no-dev --no-editable
 
@@ -40,7 +40,7 @@ FROM base AS dev
 
 RUN uv sync --locked --extra rocm --group bench --group dev --no-install-project
 
-COPY insanely_fast_whisper_rocm /app/insanely_fast_whisper_rocm
+COPY src /app/src
 COPY tests /app/tests
 COPY scripts /app/scripts
 COPY .env.example /app/.env.example

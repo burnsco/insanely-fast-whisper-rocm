@@ -45,7 +45,7 @@ def _real_media_path() -> Path:
     return Path(
         os.getenv(
             "TEST_REAL_MEDIA_PATH",
-            "test_media/Silent Witness S14E01.mkv",
+            "data/test_media/Silent Witness S14E01.mkv",
         )
     )
 

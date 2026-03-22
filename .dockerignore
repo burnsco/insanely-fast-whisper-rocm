@@ -59,9 +59,8 @@ docker-compose.yaml
 .dockerignore
 to-do/
 *.md # Excluding markdown files unless explicitly needed in the image
-temp_uploads/
+data/
 tests/
-transcripts/
 .cursor
 .windsurf
 to-do/

@@ -35,7 +35,7 @@ def test_video_upload_transcription(webui_server: str) -> None:
         True,
         "",
         True,
-        "transcripts",
+        "data/transcripts",
         api_name="/transcribe_audio_v2",
     )
 

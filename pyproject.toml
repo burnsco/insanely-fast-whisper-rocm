@@ -41,6 +41,9 @@ build-backend = "hatchling.build"
 [tool.hatch.metadata]
 allow-direct-references = true
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/insanely_fast_whisper_rocm"]
+
 
 [project.optional-dependencies]
 rocm = [
@@ -96,7 +99,7 @@ explicit = true
 line-length = 88
 target-version = "py310"                # adjust if you target 3.9/3.12
 preview = true                          # needed for DOC + FA rules
-src = ["insanely_fast_whisper_rocm"]     # first-party package path
+src = ["src/insanely_fast_whisper_rocm"]     # first-party package path
 
 
 [tool.ruff.lint]
@@ -166,14 +169,14 @@ python-version = "3.10"
 python-platform = "linux"
 
 [tool.ty.src]
-include = ["insanely_fast_whisper_rocm"]
+include = ["src/insanely_fast_whisper_rocm"]
 exclude = [
     "**/__pycache__",
     "**/.venv",
     "**/venv",
     "**/node_modules",
-    "**/temp_uploads",
-    "**/transcripts",
+    "**/data/temp_uploads",
+    "**/data/transcripts",
     "**/transcripts_zips",
 ]
 

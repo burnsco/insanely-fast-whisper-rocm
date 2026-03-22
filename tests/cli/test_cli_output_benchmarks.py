@@ -351,7 +351,7 @@ class TestOutputAndBenchmarks:
     ) -> None:
         """Benchmark filepath should be printed even if --quiet is set."""
         mock_collector = Mock()
-        mock_collector.collect.return_value = Path("benchmarks/dummy.json")
+        mock_collector.collect.return_value = Path("data/benchmarks/dummy.json")
         mock_collector_class.return_value = mock_collector
 
         with (

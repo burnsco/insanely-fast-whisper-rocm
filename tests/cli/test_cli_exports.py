@@ -21,10 +21,10 @@ class TestCliExports:
         self.model = "openai/whisper-tiny.en"
         self.batch_size = 6
         self.output_dirs = [
-            Path("transcripts"),
-            Path("transcripts-txt"),
-            Path("transcripts-srt"),
-            Path("custom_output"),
+            Path("data/transcripts"),
+            Path("data/transcripts-txt"),
+            Path("data/transcripts-srt"),
+            Path("data/custom_output"),
         ]
         self._cleanup()  # Ensure clean state before test
         # Create default directories, but not custom_output, which the test creates itself
@@ -43,10 +43,10 @@ class TestCliExports:
 
         This avoids deleting repository-tracked placeholder files like `.gitkeep`
         in the following directories:
-        - transcripts/
-        - transcripts-txt/
-        - transcripts-srt/
-        - custom_output/
+        - data/transcripts/
+        - data/transcripts-txt/
+        - data/transcripts-srt/
+        - data/custom_output/
         """
         for dir_path in self.output_dirs:
             if not dir_path.exists():
@@ -95,7 +95,7 @@ class TestCliExports:
                 ],
             )
         assert result.exit_code == 0, result.output
-        output_dir = Path("transcripts")
+        output_dir = Path("data/transcripts")
         assert output_dir.exists()
         json_files = list(output_dir.glob("*.json"))
         assert len(json_files) == 1
@@ -132,7 +132,7 @@ class TestCliExports:
                 ],
             )
         assert result.exit_code == 0, result.output
-        output_dir = Path("transcripts-txt")
+        output_dir = Path("data/transcripts-txt")
         assert output_dir.exists()
         txt_files = list(output_dir.glob("*.txt"))
         assert len(txt_files) == 1
@@ -171,7 +171,7 @@ class TestCliExports:
                 ],
             )
         assert result.exit_code == 0, result.output
-        output_dir = Path("transcripts-srt")
+        output_dir = Path("data/transcripts-srt")
         assert output_dir.exists()
         srt_files = list(output_dir.glob("*.srt"))
         assert len(srt_files) == 1
@@ -212,21 +212,21 @@ class TestCliExports:
         assert result.exit_code == 0, result.output
 
         # Check for JSON
-        json_dir = Path("transcripts")
+        json_dir = Path("data/transcripts")
         assert json_dir.exists()
         json_files = list(json_dir.glob("*.json"))
         assert len(json_files) == 1
         assert json_files[0].stat().st_size > 0
 
         # Check for TXT
-        txt_dir = Path("transcripts-txt")
+        txt_dir = Path("data/transcripts-txt")
         assert txt_dir.exists()
         txt_files = list(txt_dir.glob("*.txt"))
         assert len(txt_files) == 1
         assert txt_files[0].stat().st_size > 0
 
         # Check for SRT
-        srt_dir = Path("transcripts-srt")
+        srt_dir = Path("data/transcripts-srt")
         assert srt_dir.exists()
         srt_files = list(srt_dir.glob("*.srt"))
         assert len(srt_files) == 1
@@ -309,7 +309,7 @@ class TestCliExports:
             )
 
         assert result.exit_code == 0, result.output
-        output_dir = Path("transcripts-srt")
+        output_dir = Path("data/transcripts-srt")
         srt_files = list(output_dir.glob("*.srt"))
         assert len(srt_files) == 1
 

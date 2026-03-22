@@ -185,9 +185,9 @@ DEFAULT_DIARIZATION_MODEL = (
 )
 
 # Runtime and file handling
-UPLOAD_DIR = _env_text("WHISPER_UPLOAD_DIR", "temp_uploads") or "temp_uploads"
+UPLOAD_DIR = _env_text("WHISPER_UPLOAD_DIR", "data/temp_uploads") or "data/temp_uploads"
 DEFAULT_TRANSCRIPTS_DIR = (
-    _env_text("WHISPER_TRANSCRIPTS_DIR", "transcripts") or "transcripts"
+    _env_text("WHISPER_TRANSCRIPTS_DIR", "data/transcripts") or "data/transcripts"
 )
 SAVE_TRANSCRIPTIONS = _env_flag("SAVE_TRANSCRIPTIONS", default=True)
 APP_TIMEZONE = (

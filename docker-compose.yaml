@@ -21,9 +21,9 @@ x-rocm-service: &rocm-service
   env_file:
     - ${HOME}/.config/insanely-fast-whisper-rocm/.env
   volumes:
-    - ./transcripts:/app/transcripts
-    - ./transcripts-txt:/app/transcripts-txt
-    - ./transcripts-srt:/app/transcripts-srt
+    - ./data/transcripts:/app/data/transcripts
+    - ./data/transcripts-txt:/app/data/transcripts-txt
+    - ./data/transcripts-srt:/app/data/transcripts-srt
     - ${HOME}/.cache/huggingface/hub:/root/.cache/huggingface/hub
 
 services:

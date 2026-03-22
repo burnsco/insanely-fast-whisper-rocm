@@ -637,11 +637,11 @@ def _handle_output_and_benchmarks(
             )
             output_path.parent.mkdir(parents=True, exist_ok=True)
         else:
-            # Default: transcripts/ (json) or transcripts-{fmt}/
+            # Default: data/transcripts/ (json) or data/transcripts-{fmt}/
             if fmt == "json":
                 out_dir = Path(constants.DEFAULT_TRANSCRIPTS_DIR)
             else:
-                out_dir = Path(f"transcripts-{fmt}")
+                out_dir = Path(f"data/transcripts-{fmt}")
             out_dir.mkdir(exist_ok=True)
 
             filename_gen = FilenameGenerator(strategy=StandardFilenameStrategy())

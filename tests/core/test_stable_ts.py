@@ -10,6 +10,7 @@ import pytest
 
 MODULE_PATH = (
     Path(__file__).parent.parent.parent
+    / "src"
     / "insanely_fast_whisper_rocm"
     / "core"
     / "integrations"
