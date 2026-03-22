@@ -1,6 +1,7 @@
 """Download a Hugging Face model if it's not already cached or if forced."""
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -33,6 +34,29 @@ ENV_VAR_HF_TOKEN = "HF_TOKEN"
 
 # Note: DEFAULT_MODEL and HF_TOKEN are imported from constants.py for
 # centralized configuration
+
+
+def _resolve_effective_cache_dir(cache_dir: str | Path | None) -> str | Path | None:
+    """Return the explicit cache directory to pass to Hugging Face helpers.
+
+    Args:
+        cache_dir: Optional caller-provided cache directory.
+
+    Returns:
+        An explicit cache directory when configured, else ``None``.
+    """
+    if cache_dir is not None:
+        return cache_dir
+
+    hub_cache = os.getenv("HUGGINGFACE_HUB_CACHE")
+    if hub_cache:
+        return hub_cache
+
+    hf_home = os.getenv("HF_HOME")
+    if hf_home:
+        return Path(hf_home) / "hub"
+
+    return None
 
 
 def download_model_if_needed(
@@ -116,13 +140,17 @@ def download_model_if_needed(
     elif force and local_files_only:
         log.warning("Force re-download is ignored when 'local_files_only' is True.")
 
+    effective_cache_dir = _resolve_effective_cache_dir(cache_dir)
+    if effective_cache_dir is not None:
+        log.info("Using Hugging Face cache directory: %s", effective_cache_dir)
+
     try:
         download_path = snapshot_download(
             repo_id=effective_model_name,
             token=hf_token,
             force_download=force and not local_files_only,
             local_files_only=local_files_only,
-            cache_dir=cache_dir,
+            cache_dir=effective_cache_dir,
             allow_patterns=allow_patterns,
             ignore_patterns=ignore_patterns,
             # user_agent can be used for tracking if needed, e.g.:

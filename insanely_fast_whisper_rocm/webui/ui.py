@@ -465,4 +465,5 @@ def create_ui_components(
             api_name="transcribe_audio_v2",
         )
 
+    demo.queue(default_concurrency_limit=1, max_size=8, api_open=True)
     return demo

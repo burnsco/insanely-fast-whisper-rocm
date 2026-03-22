@@ -3,6 +3,8 @@
 This module contains the core function for launching the Gradio WebUI.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 
@@ -21,6 +23,7 @@ from insanely_fast_whisper_rocm.utils.constants import (
     DEFAULT_VAD_THRESHOLD,
 )
 from insanely_fast_whisper_rocm.utils.download_hf_model import download_model_if_needed
+from insanely_fast_whisper_rocm.utils.hf_cache import ensure_local_hf_cache_env
 from insanely_fast_whisper_rocm.webui.ui import create_ui_components
 
 # Configure logger
@@ -102,6 +105,10 @@ def launch_webui(
 
     logger.info("Starting Insanely Fast Whisper WebUI...")
 
+    local_cache = ensure_local_hf_cache_env()
+    if local_cache is not None:
+        logger.info("Using local Hugging Face cache for WebUI: %s", local_cache)
+
     # Ensure model is downloaded/verified before UI setup
     logger.info("Attempting to download/verify Whisper model for WebUI...")
     download_model_if_needed(model_name=model, custom_logger=logger)
@@ -129,4 +136,5 @@ def launch_webui(
         server_name=host,
         server_port=port,
         share=share,
+        show_error=True,
     )

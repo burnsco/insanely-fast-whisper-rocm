@@ -23,8 +23,11 @@ from insanely_fast_whisper_rocm.core.errors import (
 )
 
 
-def test_cuda_device_not_available__raises_device_not_found_error() -> None:
+def test_cuda_device_not_available__raises_device_not_found_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Raise DeviceNotFoundError when CUDA is requested but not available."""
+    monkeypatch.delenv("ROCM_PATH", raising=False)
     config = HuggingFaceBackendConfig(
         model_name="openai/whisper-tiny",
         device="cuda:0",

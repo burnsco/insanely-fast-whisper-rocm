@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import os
 import time
 import warnings
 from abc import ABC, abstractmethod
@@ -94,6 +95,16 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 available on the system.
         """
         if "cuda" in self.effective_device and not torch.cuda.is_available():
+            rocm_path = os.getenv("ROCM_PATH")
+            hip_version = getattr(torch.version, "hip", None)
+            if rocm_path and hip_version is None:
+                raise DeviceNotFoundError(
+                    "GPU device requested, but the active PyTorch build is not a "
+                    "ROCm build. This host exposes ROCm at "
+                    f"{rocm_path}, but torch reports hip=None. Re-run the command "
+                    "with the ROCm extra enabled, for example: "
+                    "`uv run --extra rocm-7-2 ...`."
+                )
             raise DeviceNotFoundError(
                 f"CUDA device {self.effective_device} requested but CUDA is not "
                 f"available. Try using 'cpu' instead."

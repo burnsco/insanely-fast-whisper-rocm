@@ -33,6 +33,7 @@ dependencies = [
 insanely-fast-whisper-cli = "insanely_fast_whisper_rocm.cli.cli:main"
 insanely-fast-whisper-webui = "insanely_fast_whisper_rocm.webui.app:launch_webui"
 insanely-fast-whisper-rocm = "insanely_fast_whisper_rocm.__main__:main"
+insanely-fast-whisper-rocm-preflight = "insanely_fast_whisper_rocm.utils.rocm_preflight:main"
 
 
 [build-system]

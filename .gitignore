@@ -91,6 +91,8 @@ benchmarks/*.json
 
 .env
 .DS_Store
+.hf-cache/
+.local-rocm-libs/
 commit_subdirectories.sh
 .vscode/settings.json
 project-overview.md.bak

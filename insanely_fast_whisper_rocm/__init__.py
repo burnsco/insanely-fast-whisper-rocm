@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from importlib import metadata
 
+import insanely_fast_whisper_rocm.rocm_bootstrap  # noqa: F401
 from insanely_fast_whisper_rocm.audio import (
     cleanup_temp_files,
     get_audio_duration,
