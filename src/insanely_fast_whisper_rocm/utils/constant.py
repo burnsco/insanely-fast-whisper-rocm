@@ -169,12 +169,20 @@ DEFAULT_DEVICE = _env_text("WHISPER_DEVICE", "0") or "0"
 DEFAULT_BATCH_SIZE = _env_int("WHISPER_BATCH_SIZE", 4)
 DEFAULT_DTYPE = _env_text("WHISPER_DTYPE", "float16") or "float16"
 DEFAULT_BETTER_TRANSFORMER = _env_flag("WHISPER_BETTER_TRANSFORMER", default=False)
+DEFAULT_CONDITION_ON_PREV_TOKENS = _env_flag(
+    "WHISPER_CONDITION_ON_PREV_TOKENS",
+    default=True,
+)
+DEFAULT_SEQUENTIAL_LONG_FORM = _env_flag(
+    "WHISPER_SEQUENTIAL_LONG_FORM",
+    default=False,
+)
 DEFAULT_CHUNK_LENGTH = _env_int("WHISPER_CHUNK_LENGTH", 30)
 DEFAULT_PROGRESS_GROUP_SIZE = _env_int("PROGRESS_GROUP_SIZE", 4)
 
-_timestamp_type = _env_text("WHISPER_TIMESTAMP_TYPE", "chunk") or "chunk"
+_timestamp_type = _env_text("WHISPER_TIMESTAMP_TYPE", "word") or "word"
 if _timestamp_type not in {"chunk", "word"}:
-    _timestamp_type = "chunk"
+    _timestamp_type = "word"
 DEFAULT_TIMESTAMP_TYPE: Literal["chunk", "word"] = cast(
     Literal["chunk", "word"], _timestamp_type
 )
@@ -243,6 +251,13 @@ DEFAULT_GAP_PADDING = _env_text("GAP_PADDING_DEFAULT", " ...") or " ..."
 DEFAULT_ADJUST_GAPS = _env_flag("ADJUST_GAPS_DEFAULT", default=True)
 _nonspeech_skip_raw = (_env_text("NONSPEECH_SKIP_DEFAULT", "") or "").strip()
 DEFAULT_NONSPEECH_SKIP = float(_nonspeech_skip_raw) if _nonspeech_skip_raw else None
+
+# Subtitle synchronization
+DEFAULT_SUBTITLE_SYNC = _env_flag("SUBTITLE_SYNC_DEFAULT", default=True)
+ALASS_BINARY = _env_text("ALASS_BINARY", "alass") or "alass"
+ALASS_TIMEOUT_SECONDS = _env_int("ALASS_TIMEOUT_SECONDS", 180)
+ALASS_SPLIT_PENALTY = _env_int("ALASS_SPLIT_PENALTY", 7)
+ALASS_NO_SPLITS = _env_flag("ALASS_NO_SPLITS", default=False)
 
 # ROCm and runtime bootstrap
 ROCM_PATH = _env_text("ROCM_PATH")
@@ -328,6 +343,7 @@ __all__ = [
     "DEFAULT_BATCH_SIZE",
     "DEFAULT_BETTER_TRANSFORMER",
     "DEFAULT_CHUNK_LENGTH",
+    "DEFAULT_CONDITION_ON_PREV_TOKENS",
     "DEFAULT_DEMUCS",
     "DEFAULT_DEVICE",
     "DEFAULT_DIARIZATION_MODEL",
@@ -338,7 +354,9 @@ __all__ = [
     "DEFAULT_NONSPEECH_SKIP",
     "DEFAULT_PROGRESS_GROUP_SIZE",
     "DEFAULT_RESPONSE_FORMAT",
+    "DEFAULT_SEQUENTIAL_LONG_FORM",
     "DEFAULT_STABILIZE",
+    "DEFAULT_SUBTITLE_SYNC",
     "DEFAULT_SUPPRESS_TS_TOKENS",
     "DEFAULT_TIMESTAMP_TYPE",
     "DEFAULT_TRANSCRIPTS_DIR",
@@ -397,5 +415,9 @@ __all__ = [
     "USER_ENV_FILE",
     "WEBUI_HOST",
     "WEBUI_PORT",
+    "ALASS_BINARY",
+    "ALASS_TIMEOUT_SECONDS",
+    "ALASS_SPLIT_PENALTY",
+    "ALASS_NO_SPLITS",
     "set_huggingface_cache_paths",
 ]

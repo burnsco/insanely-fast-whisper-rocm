@@ -53,6 +53,8 @@ class HuggingFaceBackendConfig:
     batch_size: int
     chunk_length: int
     progress_group_size: int
+    condition_on_prev_tokens: bool = True
+    sequential_long_form: bool = False
 
 
 class ASRBackend(ABC):  # pylint: disable=too-few-public-methods
@@ -442,21 +444,23 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
         warnings.filterwarnings("ignore", category=FutureWarning, module="transformers")
         hf_logging.set_verbosity_error()
 
-        # CRITICAL FIX: Disable chunk_length_s when using word-level timestamps
-        # to avoid Transformers bug where all words get the same timestamp.
-        # The manual chunking in pipeline.py handles audio splitting, so
-        # Transformers should process each chunk without further internal chunking.
+        # When the outer pipeline manually chunks audio, disable internal
+        # chunking for word-level timestamps to avoid compounding the split
+        # strategy and reintroducing the same-timestamp bug. In sequential
+        # long-form mode, keep internal chunking enabled so Whisper can use its
+        # native long-form algorithm on the full file.
         chunk_length_value = self.config.chunk_length
-        if _return_timestamps_value == "word":
+        if _return_timestamps_value == "word" and not self.config.sequential_long_form:
             chunk_length_value = None
             logger.debug(
                 "Disabling chunk_length_s for word-level timestamps to avoid "
-                "Transformers internal chunking conflict"
+                "Transformers internal chunking conflict during manual chunking"
             )
 
         generate_kwargs: dict[str, Any] = {
             "no_repeat_ngram_size": 3,
             "temperature": 0,
+            "condition_on_prev_tokens": self.config.condition_on_prev_tokens,
         }
         pipeline_kwargs: dict[str, Any] = {
             "chunk_length_s": chunk_length_value,
@@ -637,7 +641,12 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 "language": language or "auto",
                 "dtype": self.config.dtype,
                 "chunk_length_s": self.config.chunk_length,
+                "condition_on_prev_tokens": self.config.condition_on_prev_tokens,
+                "sequential_long_form": self.config.sequential_long_form,
                 "task": task,
+                "timestamp_type": (
+                    "word" if return_timestamps_value == "word" else "chunk"
+                ),
                 "return_timestamps": return_timestamps_value,
             },
         }

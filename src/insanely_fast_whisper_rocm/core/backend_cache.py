@@ -72,6 +72,8 @@ def _make_key(
         int(cfg.batch_size),
         int(cfg.chunk_length),
         int(cfg.progress_group_size),
+        bool(cfg.condition_on_prev_tokens),
+        bool(cfg.sequential_long_form),
         bool(save_transcriptions),
         os.path.abspath(output_dir),
     )

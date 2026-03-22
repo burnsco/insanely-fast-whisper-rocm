@@ -2,16 +2,16 @@
 
 import io
 from collections.abc import Generator
-from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from insanely_fast_whisper_rocm.api.dependencies import (
-    get_asr_pipeline,
+    get_backend_config,
     get_file_handler,
 )
+from insanely_fast_whisper_rocm.core.asr_backend import HuggingFaceBackendConfig
 from insanely_fast_whisper_rocm.main import app
 from insanely_fast_whisper_rocm.utils import (
     RESPONSE_FORMAT_JSON,
@@ -24,39 +24,6 @@ from insanely_fast_whisper_rocm.utils import (
 # ---------------------------------------------------------------------------
 # Dummy dependencies --------------------------------------------------------
 # ---------------------------------------------------------------------------
-
-
-class _StubPipeline:  # noqa: D401 (simple class)
-    """Minimal stub for WhisperPipeline that returns deterministic output."""
-
-    def __init__(self) -> None:
-        """Initialize the stub with a mock backend."""
-        from unittest.mock import MagicMock
-
-        self.asr_backend = MagicMock()
-        self.asr_backend.config.model_name = "test-model"
-
-    def process(self, *args: object, **kwargs: object) -> dict[str, Any]:  # noqa: D401
-        return {
-            "text": "hello world",
-            "chunks": [
-                {
-                    "id": 0,
-                    "seek": 0,
-                    "start": 0.0,
-                    "end": 1.0,
-                    "text": "hello ",
-                },
-                {
-                    "id": 1,
-                    "seek": 0,
-                    "start": 1.0,
-                    "end": 2.0,
-                    "text": "world",
-                },
-            ],
-            "language": "en",
-        }
 
 
 class _StubFileHandler:  # noqa: D401
@@ -76,13 +43,20 @@ class _StubFileHandler:  # noqa: D401
 def _override_dependencies() -> Generator[None, None, None]:
     """Override FastAPI dependencies for tests using app.dependency_overrides."""
 
-    def _get_stub_asr_pipeline() -> "_StubPipeline":  # type: ignore[return-value]
-        return _StubPipeline()
+    def _get_stub_backend_config() -> HuggingFaceBackendConfig:
+        return HuggingFaceBackendConfig(
+            model_name="test-model",
+            device="cpu",
+            dtype="float16",
+            batch_size=4,
+            chunk_length=30,
+            progress_group_size=1,
+        )
 
     def _get_stub_file_handler() -> "_StubFileHandler":  # type: ignore[return-value]
         return _StubFileHandler()
 
-    app.dependency_overrides[get_asr_pipeline] = _get_stub_asr_pipeline
+    app.dependency_overrides[get_backend_config] = _get_stub_backend_config
     app.dependency_overrides[get_file_handler] = _get_stub_file_handler
 
     yield

@@ -17,6 +17,7 @@ from tests.helpers import get_project_version
 from insanely_fast_whisper_rocm.api.app import create_app
 from insanely_fast_whisper_rocm.api.dependencies import (
     get_asr_pipeline,
+    get_backend_config,
     get_file_handler,
 )
 from insanely_fast_whisper_rocm.api.responses import ResponseFormatter
@@ -65,6 +66,22 @@ class TestAppFactory:
 
 class TestDependencies:
     """Test dependency injection providers."""
+
+    def test_get_backend_config_creates_config(self) -> None:
+        """Test that get_backend_config returns the expected configuration."""
+        config = get_backend_config(
+            model="test-model",
+            device="cpu",
+            batch_size=4,
+            dtype="float32",
+            model_chunk_length=30,
+        )
+
+        assert config.model_name == "test-model"
+        assert config.device == "cpu"
+        assert config.batch_size == 4
+        assert config.dtype == "float32"
+        assert config.chunk_length == 30
 
     @patch("insanely_fast_whisper_rocm.api.dependencies.borrow_pipeline")
     def test_get_asr_pipeline_creates_pipeline(self, mock_borrow: Mock) -> None:

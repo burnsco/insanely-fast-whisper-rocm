@@ -38,6 +38,25 @@ def test_get_asr_pipeline_unwrapped_real() -> None:
         wrapped_func()
 
 
+def test_get_backend_config_real() -> None:
+    """Test get_backend_config returns a typed backend configuration."""
+    from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
+
+    config = get_backend_config(
+        model="test-model",
+        device="cpu",
+        batch_size=4,
+        dtype="float32",
+        model_chunk_length=15,
+    )
+
+    assert config.model_name == "test-model"
+    assert config.device == "cpu"
+    assert config.batch_size == 4
+    assert config.dtype == "float32"
+    assert config.chunk_length == 15
+
+
 def test_get_file_handler_unwrapped_real() -> None:
     """Test _get_file_handler_unwrapped by accessing the __wrapped__ attribute."""
     # Import after mocking
@@ -93,6 +112,26 @@ def test_normalize_with_fastapi_param_real() -> None:
         assert (
             call_kwargs["model_name"] == "custom_model"
         )  # Should use the param's default
+
+
+def test_get_backend_config_normalizes_fastapi_param_real() -> None:
+    """Test get_backend_config normalizes FastAPI-style parameters."""
+    from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
+
+    class MockFastAPIParam:
+        """Mock FastAPI parameter object for testing normalization."""
+
+        def __init__(self, default_value: object) -> None:  # noqa: D107
+            self.default = default_value
+            self.__class__.__module__ = "fastapi.params"
+
+    config = get_backend_config(
+        model=MockFastAPIParam("custom_model"),
+        batch_size=MockFastAPIParam("5"),
+    )
+
+    assert config.model_name == "custom_model"
+    assert config.batch_size == 5
 
 
 def test_get_file_handler_real() -> None:

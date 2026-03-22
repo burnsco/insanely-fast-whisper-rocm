@@ -90,6 +90,25 @@ def audio_options(func: Callable[..., None]) -> Callable[..., None]:
             show_default=True,
         ),
         click.option(
+            "--condition-on-prev-tokens/--no-condition-on-prev-tokens",
+            default=constants.DEFAULT_CONDITION_ON_PREV_TOKENS,
+            help=(
+                "Condition each segment on previously generated tokens. "
+                "Disable to reduce silence-driven repetitions and hallucinations."
+            ),
+            show_default=True,
+        ),
+        click.option(
+            "--sequential-long-form/--manual-chunking",
+            default=constants.DEFAULT_SEQUENTIAL_LONG_FORM,
+            help=(
+                "Use Whisper's sequential long-form decoding on the full audio "
+                "instead of this app's manual chunk splitting. Recommended for "
+                "accuracy-first subtitle jobs."
+            ),
+            show_default=True,
+        ),
+        click.option(
             "--language",
             "-l",
             help="Language code (en, fr, de, None=auto)",
@@ -117,6 +136,12 @@ def audio_options(func: Callable[..., None]) -> Callable[..., None]:
             "--stabilize/--no-stabilize",
             default=constants.DEFAULT_STABILIZE,
             help="Post-process results with stable-ts for improved timestamps",
+            show_default=True,
+        ),
+        click.option(
+            "--subtitle-sync/--no-subtitle-sync",
+            default=constants.DEFAULT_SUBTITLE_SYNC,
+            help="Post-process generated SRT with ALASS synchronization",
             show_default=True,
         ),
         click.option(

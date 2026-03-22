@@ -11,6 +11,7 @@ import builtins as _builtins
 from insanely_fast_whisper_rocm.api.app import create_app
 from insanely_fast_whisper_rocm.api.dependencies import (
     get_asr_pipeline,
+    get_backend_config,
     get_file_handler,
 )
 
@@ -19,6 +20,7 @@ from insanely_fast_whisper_rocm.api.dependencies import (
 # ---------------------------------------------------------------------------
 __all__ = [
     "create_app",
+    "get_backend_config",
     "get_asr_pipeline",
     "get_file_handler",
 ]
@@ -32,6 +34,6 @@ __all__ = [
 # namespace at import-time.  This is a no-op for normal application code but it
 # greatly simplifies dependency overriding in pytest fixtures.
 
-for _sym in ("get_asr_pipeline", "get_file_handler"):
+for _sym in ("get_backend_config", "get_asr_pipeline", "get_file_handler"):
     if not hasattr(_builtins, _sym):
         setattr(_builtins, _sym, globals()[_sym])

@@ -2,6 +2,10 @@
 
 from insanely_fast_whisper_rocm.utils import constant
 from insanely_fast_whisper_rocm.utils.constant import (
+    ALASS_BINARY,
+    ALASS_NO_SPLITS,
+    ALASS_SPLIT_PENALTY,
+    ALASS_TIMEOUT_SECONDS,
     API_DESCRIPTION,
     API_HOST,
     API_PORT,
@@ -27,6 +31,7 @@ from insanely_fast_whisper_rocm.utils.constant import (
     DEFAULT_PROGRESS_GROUP_SIZE,
     DEFAULT_RESPONSE_FORMAT,
     DEFAULT_STABILIZE,
+    DEFAULT_SUBTITLE_SYNC,
     DEFAULT_SUPPRESS_TS_TOKENS,
     DEFAULT_TIMESTAMP_TYPE,
     DEFAULT_TRANSCRIPTS_DIR,
@@ -48,6 +53,8 @@ from insanely_fast_whisper_rocm.utils.constant import (
     SAVE_TRANSCRIPTIONS,
     SUPPORTED_AUDIO_FORMATS,
     SUPPORTED_RESPONSE_FORMATS,
+    SUPPORTED_UPLOAD_FORMATS,
+    SUPPORTED_VIDEO_FORMATS,
     TEMP_FILE_TTL_SECONDS,
     UPLOAD_DIR,
     USER_CONFIG_DIR,
@@ -69,6 +76,10 @@ from insanely_fast_whisper_rocm.utils.filename_generator import (
 __all__ = [
     # constants
     "API_DESCRIPTION",
+    "ALASS_BINARY",
+    "ALASS_NO_SPLITS",
+    "ALASS_SPLIT_PENALTY",
+    "ALASS_TIMEOUT_SECONDS",
     "API_HOST",
     "API_PORT",
     "API_TITLE",
@@ -93,6 +104,7 @@ __all__ = [
     "DEFAULT_RESPONSE_FORMAT",
     "DEFAULT_SUPPRESS_TS_TOKENS",
     "DEFAULT_STABILIZE",
+    "DEFAULT_SUBTITLE_SYNC",
     "DEFAULT_TIMESTAMP_TYPE",
     "DEFAULT_TRANSCRIPTS_DIR",
     "DEFAULT_VAD",
@@ -114,6 +126,8 @@ __all__ = [
     "SAVE_TRANSCRIPTIONS",
     "SUPPORTED_AUDIO_FORMATS",
     "SUPPORTED_RESPONSE_FORMATS",
+    "SUPPORTED_UPLOAD_FORMATS",
+    "SUPPORTED_VIDEO_FORMATS",
     "TEMP_FILE_TTL_SECONDS",
     "UPLOAD_DIR",
     "USER_CONFIG_DIR",

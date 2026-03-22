@@ -6,6 +6,7 @@ from insanely_fast_whisper_rocm.core.formatters import (
     SrtFormatter,
     TxtFormatter,
     VttFormatter,
+    _result_to_words,
     build_quality_segments,
 )
 
@@ -81,6 +82,19 @@ class TestBuildQualitySegments:
         segments = build_quality_segments(result)
         assert len(segments) > 0
 
+    def test_build_quality_segments__explicit_word_mode_keeps_slow_words(self) -> None:
+        """Build_quality_segments should honor explicit word timestamp mode."""
+        result = {
+            "chunks": [
+                {"text": "Hello", "timestamp": [0.0, 2.5]},
+                {"text": " world.", "timestamp": [2.5, 5.0]},
+            ]
+        }
+
+        segments = build_quality_segments(result, timestamp_type="word")
+        assert len(segments) >= 1
+        assert "Hello" in segments[0]["text"]
+
     def test_build_quality_segments__invalid_timestamps(self) -> None:
         """Build_quality_segments should skip invalid timestamps."""
         result = {
@@ -104,6 +118,39 @@ class TestBuildQualitySegments:
 class TestFormatters:
     """Test suite for SrtFormatter and VttFormatter."""
 
+    def test_result_to_words__explicit_word_mode_accepts_slow_chunks(self) -> None:
+        """Explicit word mode should bypass the average-duration heuristic."""
+        result = {
+            "chunks": [
+                {"text": "Hello", "timestamp": [0.0, 2.5]},
+                {"text": " world.", "timestamp": [2.5, 5.0]},
+            ]
+        }
+
+        words = _result_to_words(result, timestamp_type="word")
+        assert words is not None
+        assert len(words) == 2
+
+    def test_srt_formatter__explicit_word_mode_handles_pause_heavy_words(
+        self,
+    ) -> None:
+        """SrtFormatter should render readable subtitles for slow word data."""
+        result = {
+            "text": "Hello world. This is slow.",
+            "chunks": [
+                {"text": "Hello", "timestamp": [0.0, 2.5]},
+                {"text": " world.", "timestamp": [2.5, 5.0]},
+                {"text": " This", "timestamp": [6.0, 8.0]},
+                {"text": " is", "timestamp": [8.0, 10.0]},
+                {"text": " slow.", "timestamp": [10.0, 12.0]},
+            ],
+        }
+
+        formatted = SrtFormatter.format(result, timestamp_type="word")
+        assert "Hello world." in formatted
+        assert "This is" in formatted
+        assert "slow." in formatted
+
     def test_srt_formatter_with_word_timestamps(self) -> None:
         """Verify SrtFormatter uses segmentation with word-level timestamps."""
         result = {
@@ -122,7 +169,7 @@ class TestFormatters:
             "2\n00:00:01,200 --> 00:00:02,200\nThis is a test.\n"
         )
         # Use pytest.approx for floating point comparison robustness
-        actual_srt = SrtFormatter.format(result)
+        actual_srt = SrtFormatter.format(result, timestamp_type="word")
         # A simple string replace is enough to handle the tiny diff
         actual_srt = actual_srt.replace("00:00:01,199", "00:00:01,200")
         assert actual_srt == expected_srt
@@ -171,7 +218,7 @@ class TestFormatters:
             "00:00:00.000 --> 00:00:01.000\nHello world.\n\n"
             "00:00:01.200 --> 00:00:02.200\nThis is a test.\n"
         )
-        actual_vtt = VttFormatter.format(result)
+        actual_vtt = VttFormatter.format(result, timestamp_type="word")
         actual_vtt = actual_vtt.replace("00:00:01.199", "00:00:01.200")
         assert actual_vtt == expected_vtt
 
@@ -235,6 +282,7 @@ class TestFormatters:
         assert "First segment" in formatted
         assert "Second segment" in formatted
         assert "00:00:00,000 --> 00:00:02,000" in formatted
+        assert "00:00:02,500 --> 00:00:04,000" in formatted
 
     def test_srt_formatter__hyphen_normalization(self) -> None:
         """SrtFormatter should normalize hyphen spacing."""

@@ -89,6 +89,8 @@ class CLIFacade:
         batch_size: int,
         chunk_length: int,
         progress_group_size: int,
+        condition_on_prev_tokens: bool = constants.DEFAULT_CONDITION_ON_PREV_TOKENS,
+        sequential_long_form: bool = constants.DEFAULT_SEQUENTIAL_LONG_FORM,
     ) -> HuggingFaceBackendConfig:
         """Create a backend configuration from CLI-supplied arguments.
 
@@ -99,6 +101,10 @@ class CLIFacade:
             batch_size (int): Number of samples to batch per inference step.
             chunk_length (int): Audio chunk size in seconds.
             progress_group_size (int): Chunks per progress update group.
+            condition_on_prev_tokens: Whether generation should condition on
+                previous tokens from prior segments.
+            sequential_long_form: Whether to use Whisper's internal long-form
+                decoding instead of manual pipeline chunking.
 
         Returns:
             HuggingFaceBackendConfig: The constructed backend configuration.
@@ -111,6 +117,8 @@ class CLIFacade:
             batch_size=batch_size,
             chunk_length=chunk_length,
             progress_group_size=progress_group_size,
+            condition_on_prev_tokens=condition_on_prev_tokens,
+            sequential_long_form=sequential_long_form,
         )
 
     def process_audio(
@@ -122,6 +130,8 @@ class CLIFacade:
         batch_size: int | None = None,
         chunk_length: int = 30,
         progress_group_size: int | None = None,
+        condition_on_prev_tokens: bool = constants.DEFAULT_CONDITION_ON_PREV_TOKENS,
+        sequential_long_form: bool = constants.DEFAULT_SEQUENTIAL_LONG_FORM,
         language: str | None = None,
         task: Literal["transcribe", "translate"] = "transcribe",
         return_timestamps_value: bool | Literal["chunk", "word"] = True,
@@ -142,6 +152,10 @@ class CLIFacade:
             progress_group_size: Chunks per progress update group. Defaults to
                 :data:`~insanely_fast_whisper_rocm.utils.constant.DEFAULT_PROGRESS_GROUP_SIZE`
                 when ``None``.
+            condition_on_prev_tokens: Whether each generated segment may use
+                previously generated tokens as context.
+            sequential_long_form: Whether to let Whisper handle long-form
+                segmentation internally on the full audio input.
             language: Optional language code for processing.
             task: Task to perform ("transcribe" or "translate").
             return_timestamps_value: Whether/how to return timestamps.
@@ -187,17 +201,22 @@ class CLIFacade:
             batch_size=batch_size,
             chunk_length=chunk_length,
             progress_group_size=eff_progress_group_size,
+            condition_on_prev_tokens=condition_on_prev_tokens,
+            sequential_long_form=sequential_long_form,
         )
 
         # Log final configuration
         logger.info(
             "Final configuration - Model: %s, Device: %s, Dtype: %s, "
-            "Batch size: %s, Chunk length: %s, Language: %s",
+            "Batch size: %s, Chunk length: %s, Prev tokens: %s, "
+            "Sequential long-form: %s, Language: %s",
             backend_config.model_name,
             backend_config.device,
             backend_config.dtype,
             backend_config.batch_size,
             backend_config.chunk_length,
+            backend_config.condition_on_prev_tokens,
+            backend_config.sequential_long_form,
             language,
         )
 

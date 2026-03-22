@@ -138,6 +138,7 @@ def test_transcription_response_serialization() -> None:
         "segments": None,
         "language": "en",
         "runtime_seconds": 1.23,
+        "subtitle_sync": None,
     }
     assert response_dict == expected
 

@@ -294,7 +294,19 @@ class SrtMerger(MergeHandler):
         Returns:
             The formatted SRT content with renumbered entries.
         """
-        srt_content = FORMATTERS["srt"].format(result_data)
+        synced_srt = result_data.get("srt_synced_text")
+        timestamp_type = (
+            result_data.get("config_used", {}).get("timestamp_type")
+            if isinstance(result_data.get("config_used"), dict)
+            else None
+        )
+        if isinstance(synced_srt, str) and synced_srt.strip():
+            srt_content = synced_srt
+        else:
+            srt_content = FORMATTERS["srt"].format(
+                result_data,
+                timestamp_type=timestamp_type,
+            )
         return self._renumber_srt(srt_content)
 
     def _renumber_srt(self, content: str) -> str:
@@ -362,7 +374,12 @@ class VttMerger(MergeHandler):
         Returns:
             The formatted VTT content string.
         """
-        return FORMATTERS["vtt"].format(result_data)
+        timestamp_type = (
+            result_data.get("config_used", {}).get("timestamp_type")
+            if isinstance(result_data.get("config_used"), dict)
+            else None
+        )
+        return FORMATTERS["vtt"].format(result_data, timestamp_type=timestamp_type)
 
     def _finalize_content(self, content: str) -> str:
         """Finalize VTT content with WEBVTT header.

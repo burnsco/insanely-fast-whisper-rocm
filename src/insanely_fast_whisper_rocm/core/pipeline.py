@@ -442,14 +442,28 @@ class WhisperPipeline(BasePipeline):
         if token is not None:
             token.raise_if_cancelled()
 
-        # Split the audio into chunks so we can provide deterministic progress
-        # updates to observers (e.g. Gradio's progress bar). ``split_audio``
-        # returns a list with the original path if chunking is unnecessary.
-        chunk_data = audio_processing.split_audio(
-            converted_path,
-            chunk_duration=float(self.asr_backend.config.chunk_length),
-            chunk_overlap=0.0,
+        # Accuracy-first mode skips the app's manual audio splitting and lets
+        # Whisper handle long-form sequencing internally.
+        sequential_long_form = getattr(
+            self.asr_backend.config,
+            "sequential_long_form",
+            False,
         )
+        if sequential_long_form is True:
+            chunk_data = [(converted_path, 0.0)]
+            logger.info(
+                "Sequential long-form mode enabled; skipping manual audio splitting"
+            )
+        else:
+            # Split the audio into chunks so we can provide deterministic
+            # progress updates to observers (e.g. Gradio's progress bar).
+            # ``split_audio`` returns a list with the original path if chunking
+            # is unnecessary.
+            chunk_data = audio_processing.split_audio(
+                converted_path,
+                chunk_duration=float(self.asr_backend.config.chunk_length),
+                chunk_overlap=0.0,
+            )
         total_chunks = len(chunk_data)
         logger.debug(
             "Audio split into %d chunks (chunk_duration=%.1fs)",

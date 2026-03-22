@@ -664,6 +664,12 @@ class BatchZipBuilder:
         Raises:
             ValueError: If the requested ``format_type`` is unknown.
         """
+        if (
+            format_type == "srt"
+            and isinstance(result_data.get("srt_synced_text"), str)
+            and result_data["srt_synced_text"].strip()
+        ):
+            return result_data["srt_synced_text"]
         formatter = FORMATTERS.get(format_type)
         if not formatter:
             raise ValueError(f"Unknown format: {format_type}")

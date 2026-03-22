@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from insanely_fast_whisper_rocm import constants
 from insanely_fast_whisper_rocm.api.app import create_app
+from insanely_fast_whisper_rocm.core.asr_backend import HuggingFaceBackendConfig
 
 
 @pytest.fixture
@@ -107,12 +108,17 @@ class TestTranscriptionEndpoint:
         mock_orch.run_transcription.return_value = mock_asr_result
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline that is injected via dependency
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = "test-model"
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name="test-model",
+            device="cpu",
+            dtype="float16",
+            batch_size=4,
+            chunk_length=30,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # Make request
         response = client.post(
@@ -158,12 +164,17 @@ class TestTranscriptionEndpoint:
         mock_orch.run_transcription.return_value = mock_asr_result
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = "test-model"
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name="test-model",
+            device="cpu",
+            dtype="float16",
+            batch_size=4,
+            chunk_length=30,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # Make request with text response format
         response = client.post(
@@ -196,16 +207,17 @@ class TestTranscriptionEndpoint:
         mock_orch.run_transcription.return_value = mock_asr_result
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = constants.DEFAULT_MODEL
-        mock_pipeline.asr_backend.config.device = constants.DEFAULT_DEVICE
-        mock_pipeline.asr_backend.config.batch_size = constants.DEFAULT_BATCH_SIZE
-        mock_pipeline.asr_backend.config.dtype = constants.DEFAULT_DTYPE
-        mock_pipeline.asr_backend.config.chunk_length = constants.DEFAULT_CHUNK_LENGTH
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name=constants.DEFAULT_MODEL,
+            device=constants.DEFAULT_DEVICE,
+            dtype=constants.DEFAULT_DTYPE,
+            batch_size=constants.DEFAULT_BATCH_SIZE,
+            chunk_length=constants.DEFAULT_CHUNK_LENGTH,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # Make request with specific parameters
         _ = client.post(
@@ -260,12 +272,17 @@ class TestTranslationEndpoint:
         mock_orch.run_transcription.return_value = mock_asr_result
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = "test-model"
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name="test-model",
+            device="cpu",
+            dtype="float16",
+            batch_size=4,
+            chunk_length=30,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # Make request
         response = client.post(
@@ -304,12 +321,17 @@ class TestTranslationEndpoint:
         mock_orch.run_transcription.return_value = mock_asr_result
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = "test-model"
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name="test-model",
+            device="cpu",
+            dtype="float16",
+            batch_size=4,
+            chunk_length=30,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # Make request with text response format
         response = client.post(
@@ -343,12 +365,17 @@ class TestFileHandling:
         mock_orch.run_transcription.return_value = mock_asr_result
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = "test-model"
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name="test-model",
+            device="cpu",
+            dtype="float16",
+            batch_size=4,
+            chunk_length=30,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # Make request
         response = client.post(
@@ -375,12 +402,17 @@ class TestFileHandling:
         mock_orch.run_transcription.side_effect = Exception("Processing failed")
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = "test-model"
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name="test-model",
+            device="cpu",
+            dtype="float16",
+            batch_size=4,
+            chunk_length=30,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # Make request - expect it to raise an exception due to our mock
         try:
@@ -429,16 +461,17 @@ class TestBackwardsCompatibility:
         mock_orch.run_transcription.return_value = mock_asr_result
         mock_create_orchestrator.return_value = mock_orch
 
-        # Mock the ASR pipeline
-        from insanely_fast_whisper_rocm.api.dependencies import get_asr_pipeline
+        from insanely_fast_whisper_rocm.api.dependencies import get_backend_config
 
-        mock_pipeline = Mock()
-        mock_pipeline.asr_backend.config.model_name = constants.DEFAULT_MODEL
-        mock_pipeline.asr_backend.config.device = constants.DEFAULT_DEVICE
-        mock_pipeline.asr_backend.config.batch_size = constants.DEFAULT_BATCH_SIZE
-        mock_pipeline.asr_backend.config.dtype = constants.DEFAULT_DTYPE
-        mock_pipeline.asr_backend.config.chunk_length = constants.DEFAULT_CHUNK_LENGTH
-        client.app.dependency_overrides[get_asr_pipeline] = lambda: mock_pipeline
+        backend_config = HuggingFaceBackendConfig(
+            model_name=constants.DEFAULT_MODEL,
+            device=constants.DEFAULT_DEVICE,
+            dtype=constants.DEFAULT_DTYPE,
+            batch_size=constants.DEFAULT_BATCH_SIZE,
+            chunk_length=constants.DEFAULT_CHUNK_LENGTH,
+            progress_group_size=1,
+        )
+        client.app.dependency_overrides[get_backend_config] = lambda: backend_config
 
         # This should not raise validation errors for parameter names
         response = client.post(

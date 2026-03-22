@@ -78,3 +78,62 @@ def test_cli_transcribe_fallback_on_corrupted_stabilization(
     assert final_data["text"] == "This is a valid transcription."
     assert len(final_data["segments"]) == 2
     assert final_data["segments"][0]["start"] == 0.0
+
+
+def test_cli_transcribe_video__applies_subtitle_sync(tmp_path: Path) -> None:
+    """Apply ALASS subtitle sync on video inputs when exporting SRT."""
+    video_file = tmp_path / "test.mp4"
+    video_file.touch()
+    extracted_audio = tmp_path / "extracted.wav"
+    extracted_audio.touch()
+    output_srt = tmp_path / "output.srt"
+
+    asr_result = {
+        "text": "Hello world",
+        "segments": [{"start": 0.0, "end": 1.0, "text": "Hello world"}],
+        "chunks": [],
+        "runtime_seconds": 0.0,
+        "config_used": {},
+    }
+
+    with (
+        unittest.mock.patch(
+            "insanely_fast_whisper_rocm.cli.commands.extract_audio_from_video",
+            return_value=str(extracted_audio),
+        ),
+        unittest.mock.patch(
+            "insanely_fast_whisper_rocm.cli.commands.cli_facade.process_audio",
+            return_value=asr_result,
+        ),
+        unittest.mock.patch(
+            "insanely_fast_whisper_rocm.cli.commands.sync_subtitle_with_alass",
+            return_value=(
+                "1\n00:00:01,000 --> 00:00:02,000\nHello world\n",
+                {
+                    "enabled": True,
+                    "engine": "alass",
+                    "applied": True,
+                    "reason": None,
+                    "runtime_ms": 5,
+                },
+            ),
+        ) as mock_sync,
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "transcribe",
+                str(video_file),
+                "--export-format",
+                "srt",
+                "--output",
+                str(output_srt),
+            ],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0
+    mock_sync.assert_called_once()
+    rendered_srt = output_srt.read_text(encoding="utf-8")
+    assert "00:00:01,000 --> 00:00:02,000" in rendered_srt

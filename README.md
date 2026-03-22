@@ -7,7 +7,7 @@ ROCm-first Whisper transcription for AMD GPUs with three supported surfaces:
 - optional Gradio WebUI
 
 This repo now targets a single accelerator stack: ROCm 7.2 on Ubuntu 22.04 with
-Python 3.10.
+Python 3.10 (recommended baseline for PyTorch/ROCm compatibility). The project shape is simplified around a single dependency manager (`uv`) and a single GPU stack, with Docker as the primary runtime surface. The API and CLI are the main supported surfaces, with the Gradio UI as an optional companion.
 
 ## What changed
 
@@ -58,6 +58,12 @@ Key settings:
 - `WHISPER_BATCH_SIZE`: inference batch size
 - `PYTORCH_ALLOC_CONF`: ROCm allocator tuning
 - `HF_TOKEN`: optional token for gated Hugging Face models
+- `SUBTITLE_SYNC_DEFAULT`: enable ALASS subtitle sync for generated SRT output
+- `ALASS_BINARY`: executable name/path for the ALASS CLI (must be in `PATH`)
+
+For subtitle synchronization, install `alass` on the host/container and ensure
+`ffmpeg`/`ffprobe` are available. This project expects a host-provided `alass`
+binary rather than bundling it.
 
 PyTorch still uses `cuda:N` device strings internally on ROCm builds, so a user
 value like `WHISPER_DEVICE=0` maps to the first HIP-backed GPU.
@@ -82,6 +88,21 @@ Use the CLI:
 uv run insanely-fast-whisper-cli transcribe path/to/audio.mp3
 uv run insanely-fast-whisper-cli translate path/to/audio.mp3
 ```
+
+## Make Commands
+
+Use `make help` to see all available shortcuts.
+
+Common workflows:
+
+```bash
+make dev      # run API + WebUI in dev mode with hot reloading
+make dev-bg   # same as above, but detached
+make dev-logs # tail API + WebUI logs
+make dev-down # stop and remove dev containers + volumes
+```
+
+The `dev` targets use `docker-compose.dev.yaml`, and include the `webui` profile so both services start together.
 
 ## Docker
 

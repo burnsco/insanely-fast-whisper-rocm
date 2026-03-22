@@ -59,8 +59,15 @@ docker-compose.yaml
 .dockerignore
 to-do/
 *.md # Excluding markdown files unless explicitly needed in the image
+!README.md
 data/
 tests/
 .cursor
 .windsurf
 to-do/
+
+# Required by the dev image build stage.
+!tests/
+!tests/**
+!docker-compose.yaml
+!docker-compose.dev.yaml

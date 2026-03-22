@@ -8,6 +8,7 @@ import pytest
 
 from insanely_fast_whisper_rocm.api.dependencies import (
     get_asr_pipeline,
+    get_backend_config,
     get_file_handler,
 )
 from insanely_fast_whisper_rocm.api.routes import (
@@ -15,7 +16,7 @@ from insanely_fast_whisper_rocm.api.routes import (
     create_translation,
     router,
 )
-from insanely_fast_whisper_rocm.utils import SUPPORTED_RESPONSE_FORMATS
+from insanely_fast_whisper_rocm.utils import SUPPORTED_RESPONSE_FORMATS, constants
 
 
 def test_create_transcription_unsupported_response_format() -> None:
@@ -99,12 +100,17 @@ def test_route_function_signatures() -> None:
         "demucs",
         "vad",
         "vad_threshold",
-        "asr_pipeline",
+        "subtitle_sync",
+        "backend_config",
         "file_handler",
     }
 
     actual_params = set(sig.parameters.keys())
     assert expected_params.issubset(actual_params)
+    assert (
+        sig.parameters["timestamp_type"].default.default
+        == constants.DEFAULT_TIMESTAMP_TYPE
+    )
 
     # Check create_translation signature
     sig = inspect.signature(create_translation)
@@ -117,12 +123,17 @@ def test_route_function_signatures() -> None:
         "demucs",
         "vad",
         "vad_threshold",
-        "asr_pipeline",
+        "subtitle_sync",
+        "backend_config",
         "file_handler",
     }
 
     actual_params = set(sig.parameters.keys())
     assert expected_params.issubset(actual_params)
+    assert (
+        sig.parameters["timestamp_type"].default.default
+        == constants.DEFAULT_TIMESTAMP_TYPE
+    )
 
 
 def test_route_return_types() -> None:
@@ -140,5 +151,6 @@ def test_route_return_types() -> None:
 def test_route_dependencies() -> None:
     """Test that route dependencies can be imported."""
     # Just check that these can be imported without errors
+    assert callable(get_backend_config)
     assert callable(get_asr_pipeline)
     assert callable(get_file_handler)

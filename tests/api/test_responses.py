@@ -293,6 +293,40 @@ def test_format_transcription_unsupported_format() -> None:
     assert '"error":"Unsupported response_format"' in content
 
 
+def test_format_transcription_srt_prefers_synced_text() -> None:
+    """Return ALASS-synced SRT text when present on the result payload."""
+    result = {
+        "text": "Hello world",
+        "srt_synced_text": "1\n00:00:01,000 --> 00:00:02,000\nHello world\n",
+    }
+
+    response = ResponseFormatter.format_transcription(result, RESPONSE_FORMAT_SRT)
+
+    assert isinstance(response, PlainTextResponse)
+    assert response.body == b"1\n00:00:01,000 --> 00:00:02,000\nHello world\n"
+
+
+def test_format_transcription_verbose_json_includes_subtitle_sync() -> None:
+    """Include subtitle_sync metadata in verbose JSON responses."""
+    result = {
+        "text": "Hello world",
+        "chunks": [],
+        "subtitle_sync": {
+            "enabled": True,
+            "engine": "alass",
+            "applied": True,
+            "reason": None,
+            "runtime_ms": 12,
+        },
+    }
+
+    response = ResponseFormatter.format_transcription(
+        result, RESPONSE_FORMAT_VERBOSE_JSON
+    )
+    payload = response.body.decode("utf-8")
+    assert '"subtitle_sync"' in payload
+
+
 def test_format_translation_text_response() -> None:
     """Test format_translation with text response format."""
     result = {"transcription": {"text": "Hello world"}}

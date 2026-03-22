@@ -10,7 +10,7 @@ import json
 import logging
 import math
 import re
-from typing import Any
+from typing import Any, Literal, cast
 
 from insanely_fast_whisper_rocm.core.segmentation import (
     Word,
@@ -26,8 +26,124 @@ from insanely_fast_whisper_rocm.utils.format_time import (
 
 logger = logging.getLogger(__name__)
 
+TimestampType = Literal["chunk", "word"]
 
-def _result_to_words(result: dict[str, Any]) -> list[Word] | None:
+
+def _resolve_timestamp_type(
+    timestamp_type: object | None,
+    result: dict[str, Any],
+) -> TimestampType | None:
+    """Resolve a preferred timestamp mode from explicit or embedded metadata.
+
+    Returns:
+        ``"chunk"`` or ``"word"`` when a timestamp mode is available, or
+        ``None`` when the caller should fall back to heuristics.
+    """
+    if isinstance(timestamp_type, str) and timestamp_type in {"chunk", "word"}:
+        return cast(TimestampType, timestamp_type)
+    if timestamp_type is True:
+        return "chunk"
+    if timestamp_type is False:
+        return None
+
+    for container_name in ("config_used", "metadata"):
+        container = result.get(container_name)
+        if not isinstance(container, dict):
+            continue
+
+        nested_type = container.get("timestamp_type")
+        if isinstance(nested_type, str) and nested_type in {"chunk", "word"}:
+            return cast(TimestampType, nested_type)
+
+        return_timestamps = container.get("return_timestamps")
+        if return_timestamps == "word":
+            return "word"
+        if return_timestamps is True:
+            return "chunk"
+
+        nested_config_used = container.get("config_used")
+        if isinstance(nested_config_used, dict):
+            nested_type = nested_config_used.get("timestamp_type")
+            if isinstance(nested_type, str) and nested_type in {"chunk", "word"}:
+                return cast(TimestampType, nested_type)
+            return_timestamps = nested_config_used.get("return_timestamps")
+            if return_timestamps == "word":
+                return "word"
+            if return_timestamps is True:
+                return "chunk"
+
+    return None
+
+
+def _collect_word_candidates(result: dict[str, Any]) -> list[Word]:
+    """Collect word-level timestamp candidates from supported result shapes.
+
+    Returns:
+        A list of candidate ``Word`` instances extracted from chunks or
+        segments, or an empty list when no word-like payload is present.
+    """
+    words_list: list[Word] = []
+
+    chunks = result.get("chunks")
+    if isinstance(chunks, list) and chunks and "timestamp" in chunks[0]:
+        for chunk in chunks:
+            text = chunk.get("text", "").strip()
+            timestamp = chunk.get("timestamp")
+            if text and isinstance(timestamp, (list, tuple)) and len(timestamp) == 2:
+                start, end = timestamp
+                if isinstance(start, (int, float)) and isinstance(end, (int, float)):
+                    words_list.append(Word(text=text, start=start, end=end))
+        if words_list:
+            return words_list
+
+    segments = result.get("segments")
+    if not isinstance(segments, list) or not segments:
+        return []
+
+    first_segment = segments[0]
+    if not isinstance(first_segment, dict):
+        return []
+
+    if "words" in first_segment:
+        for segment in segments:
+            if not isinstance(segment, dict):
+                continue
+            words = segment.get("words")
+            if isinstance(words, list) and words and isinstance(words[0], dict):
+                for word_data in words:
+                    text = word_data.get("word", "").strip()
+                    start = word_data.get("start")
+                    end = word_data.get("end")
+                    if (
+                        text
+                        and isinstance(start, (int, float))
+                        and isinstance(end, (int, float))
+                    ):
+                        words_list.append(Word(text=text, start=start, end=end))
+        return words_list
+
+    if "start" in first_segment and "end" in first_segment:
+        for segment in segments:
+            if not isinstance(segment, dict):
+                continue
+            text = segment.get("text", "").strip()
+            start = segment.get("start")
+            end = segment.get("end")
+            if (
+                text
+                and isinstance(start, (int, float))
+                and isinstance(end, (int, float))
+            ):
+                words_list.append(Word(text=text, start=start, end=end))
+
+    return words_list
+
+
+def _result_to_words(
+    result: dict[str, Any],
+    *,
+    timestamp_type: object | None = None,
+) -> list[Word] | None:
     """Extract `Word` objects from a transcription result if available.
 
     This helper checks for word-level timestamps and normalizes them into a
@@ -35,6 +151,7 @@ def _result_to_words(result: dict[str, Any]) -> list[Word] | None:
 
     Args:
         result: The transcription result from the ASR pipeline.
+        timestamp_type: Optional timestamp mode hint.
 
     Returns:
         A list of `Word` objects if word-level timestamps are found, otherwise
@@ -45,93 +162,37 @@ def _result_to_words(result: dict[str, Any]) -> list[Word] | None:
         "chunks" in result,
         "segments" in result,
     )
-    words_list = []
-    # Prioritize 'chunks' if it looks like word-level data
-    chunks = result.get("chunks")
-    if isinstance(chunks, list) and chunks and "timestamp" in chunks[0]:
-        for chunk in chunks:
-            text = chunk.get("text", "").strip()
-            timestamp = chunk.get("timestamp")
-            if text and isinstance(timestamp, (list, tuple)) and len(timestamp) == 2:
-                start, end = timestamp
-                if isinstance(start, (int, float)) and isinstance(end, (int, float)):
-                    words_list.append(Word(text=text, start=start, end=end))
+    words_list = _collect_word_candidates(result)
+    effective_timestamp_type = _resolve_timestamp_type(timestamp_type, result)
 
     if words_list:
-        # Heuristic: if the average word duration is very short, it's likely word-level
+        if effective_timestamp_type == "chunk":
+            logger.debug("Timestamp mode is chunk; skipping word-level interpretation")
+            return None
+        if effective_timestamp_type == "word":
+            logger.debug(
+                "Returning %d words with explicit word-level timestamps",
+                len(words_list),
+            )
+            return words_list
+
+        # Heuristic: if the average word duration is very short, it's likely
+        # word-level data even when the caller did not provide explicit mode.
         avg_duration = sum(w.end - w.start for w in words_list) / len(words_list)
         logger.debug(
-            "Found %d potential words from chunks, avg_duration=%.3fs",
+            "Found %d potential words, avg_duration=%.3fs",
             len(words_list),
             avg_duration,
         )
         if avg_duration < 1.5:  # Words are typically short
             logger.debug("Returning %d words (avg_duration < 1.5s)", len(words_list))
             return words_list
-        else:
-            # Reject as sentence-level data; clear the list to avoid returning it later
-            logger.debug(
-                "Rejecting chunks as sentence-level (avg_duration=%.3fs >= 1.5s)",
-                avg_duration,
-            )
-            words_list = []
 
-    # Fallback to 'segments' if they contain word-level data
-    segments = result.get("segments")
-    if isinstance(segments, list) and segments:
-        # Check if segments have a 'words' field (nested word-level data)
-        first_segment = segments[0]
-        if "words" in first_segment:
-            # Nested structure: segments contain words arrays
-            for segment in segments:
-                words = segment.get("words")
-                if isinstance(words, list) and words and isinstance(words[0], dict):
-                    for word_data in words:
-                        text = word_data.get("word", "").strip()
-                        start = word_data.get("start")
-                        end = word_data.get("end")
-                        if (
-                            text
-                            and isinstance(start, (int, float))
-                            and isinstance(end, (int, float))
-                        ):
-                            words_list.append(Word(text=text, start=start, end=end))
-        elif "start" in first_segment and "end" in first_segment:
-            # Flat structure: each segment IS a word (from stable-ts)
-            # Check if these look like word-level segments (short duration)
-            for segment in segments:
-                text = segment.get("text", "").strip()
-                start = segment.get("start")
-                end = segment.get("end")
-                if (
-                    text
-                    and isinstance(start, (int, float))
-                    and isinstance(end, (int, float))
-                ):
-                    words_list.append(Word(text=text, start=start, end=end))
-
-            # Only return if average duration suggests word-level data
-            if words_list:
-                total_duration = sum(w.end - w.start for w in words_list)
-                avg_duration = total_duration / len(words_list)
-                logger.debug(
-                    "Flat segment structure: %d items, avg_duration=%.3fs",
-                    len(words_list),
-                    avg_duration,
-                )
-                if avg_duration < 1.5:  # Words are typically short
-                    logger.debug(
-                        "Returning %d words from segments (avg_duration < 1.5s)",
-                        len(words_list),
-                    )
-                    return words_list
-                else:
-                    # These are sentence-level segments, not words
-                    logger.debug(
-                        "Rejecting as sentence-level (avg_duration=%.3fs >= 1.5s)",
-                        avg_duration,
-                    )
-                    return None
+        logger.debug(
+            "Rejecting candidate words as sentence-level (avg_duration=%.3fs >= 1.5s)",
+            avg_duration,
+        )
+        return None
 
     result_count = len(words_list) if words_list else 0
     logger.debug(
@@ -141,11 +202,17 @@ def _result_to_words(result: dict[str, Any]) -> list[Word] | None:
     return words_list if words_list else None
 
 
-def build_quality_segments(result: dict[str, Any]) -> list[dict[str, Any]]:
+def build_quality_segments(
+    result: dict[str, Any],
+    *,
+    timestamp_type: object | None = None,
+) -> list[dict[str, Any]]:
     """Build readability-aware segments for quality scoring.
 
     Args:
         result: Transcription result containing raw word-level timestamps.
+        timestamp_type: Optional timestamp mode hint used to avoid heuristic
+            misclassification of word-level data.
 
     Returns:
         Segments with ``start``, ``end``, and ``text`` keys suitable for
@@ -155,7 +222,7 @@ def build_quality_segments(result: dict[str, Any]) -> list[dict[str, Any]]:
         are returned.
     """
     logger.info("[build_quality_segments] Processing result for quality scoring")
-    words = _result_to_words(result)
+    words = _result_to_words(result, timestamp_type=timestamp_type)
     if words:
         word_span = words[-1].end - words[0].start if words else 0
         avg_word_dur = sum(w.end - w.start for w in words) / len(words)
@@ -222,11 +289,17 @@ class BaseFormatter:
     """Base class for all formatters."""
 
     @classmethod
-    def format(cls, result: dict[str, Any]) -> str:
+    def format(
+        cls,
+        result: dict[str, Any],
+        *,
+        timestamp_type: object | None = None,
+    ) -> str:
         """Format the transcription result.
 
         Args:
             result: The transcription result from ASRPipeline
+            timestamp_type: Optional timestamp mode hint.
 
         Returns:
             Formatted string
@@ -243,11 +316,17 @@ class TxtFormatter(BaseFormatter):
     """Formatter for plain text output."""
 
     @classmethod
-    def format(cls, result: dict[str, Any]) -> str:
+    def format(
+        cls,
+        result: dict[str, Any],
+        *,
+        timestamp_type: object | None = None,
+    ) -> str:
         """Format as plain text.
 
         Args:
             result: The transcription result from ASRPipeline
+            timestamp_type: Optional timestamp mode hint.
 
         Returns:
             str: The formatted text.
@@ -294,7 +373,12 @@ class SrtFormatter(BaseFormatter):
         return cls._HYPHEN_SPACING_PATTERN.sub("-", text)
 
     @classmethod
-    def format(cls, result: dict[str, Any]) -> str:
+    def format(
+        cls,
+        result: dict[str, Any],
+        *,
+        timestamp_type: object | None = None,
+    ) -> str:
         """Format as SRT subtitles with timestamps.
 
         This method uses a segmentation pipeline to create readable subtitles
@@ -303,6 +387,7 @@ class SrtFormatter(BaseFormatter):
 
         Args:
             result: The transcription result from ASRPipeline.
+            timestamp_type: Optional timestamp mode hint.
 
         Returns:
             The formatted SRT subtitles as a string.
@@ -311,7 +396,7 @@ class SrtFormatter(BaseFormatter):
 
         # Attempt to use the new segmentation pipeline first
         if USE_READABLE_SUBTITLES:
-            words = _result_to_words(result)
+            words = _result_to_words(result, timestamp_type=timestamp_type)
             if words:
                 logger.info(
                     "[SrtFormatter] Found %d words, using segmentation pipeline.",
@@ -519,7 +604,12 @@ class VttFormatter(BaseFormatter):
     """Formatter for WebVTT subtitles."""
 
     @classmethod
-    def format(cls, result: dict[str, Any]) -> str:
+    def format(
+        cls,
+        result: dict[str, Any],
+        *,
+        timestamp_type: object | None = None,
+    ) -> str:
         """Format as WebVTT subtitles with timestamps.
 
         This method uses a segmentation pipeline to create readable subtitles
@@ -528,6 +618,7 @@ class VttFormatter(BaseFormatter):
 
         Args:
             result: The transcription result from ASRPipeline.
+            timestamp_type: Optional timestamp mode hint.
 
         Returns:
             The formatted WebVTT subtitles as a string.
@@ -536,7 +627,7 @@ class VttFormatter(BaseFormatter):
 
         # Attempt to use the new segmentation pipeline first
         if USE_READABLE_SUBTITLES:
-            words = _result_to_words(result)
+            words = _result_to_words(result, timestamp_type=timestamp_type)
             if words:
                 logger.debug("[VttFormatter] Found words, using segmentation.")
                 segments = segment_words(words)
@@ -628,11 +719,17 @@ class JsonFormatter(BaseFormatter):
     """Formatter for JSON output."""
 
     @classmethod
-    def format(cls, result: dict[str, Any]) -> str:
+    def format(
+        cls,
+        result: dict[str, Any],
+        *,
+        timestamp_type: object | None = None,
+    ) -> str:
         """Format as pretty-printed JSON.
 
         Args:
             result: The result to format.
+            timestamp_type: Optional timestamp mode hint.
 
         Returns:
             str: The formatted JSON string.

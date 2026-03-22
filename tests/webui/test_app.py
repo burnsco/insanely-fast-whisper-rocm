@@ -136,6 +136,7 @@ class TestLaunchWebUI:
         assert create_ui_args.kwargs["default_stabilize"] is True
         assert create_ui_args.kwargs["default_demucs"] is True
         assert create_ui_args.kwargs["default_vad"] is True
+        assert create_ui_args.kwargs["default_subtitle_sync"] is True
         assert create_ui_args.kwargs["default_vad_threshold"] == 0.5
 
     @patch("insanely_fast_whisper_rocm.webui.app.download_model_if_needed")
@@ -162,6 +163,7 @@ class TestLaunchWebUI:
         assert create_ui_args.kwargs["default_stabilize"] is False
         assert create_ui_args.kwargs["default_demucs"] is False
         assert create_ui_args.kwargs["default_vad"] is False
+        assert create_ui_args.kwargs["default_subtitle_sync"] is True
 
     @patch("insanely_fast_whisper_rocm.webui.app.logging.basicConfig")
     @patch("insanely_fast_whisper_rocm.webui.app.download_model_if_needed")
@@ -304,4 +306,5 @@ class TestLaunchWebUI:
         assert create_ui_args.kwargs["default_stabilize"] is True
         assert create_ui_args.kwargs["default_demucs"] is True
         assert create_ui_args.kwargs["default_vad"] is True
+        assert create_ui_args.kwargs["default_subtitle_sync"] is True
         assert create_ui_args.kwargs["default_vad_threshold"] == 0.4

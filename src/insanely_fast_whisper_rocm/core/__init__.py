@@ -32,6 +32,7 @@ from insanely_fast_whisper_rocm.core.pipeline import (
     TimestampType,
 )
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 
 class _DummyBackend(ASRBackend):
@@ -138,7 +139,7 @@ class ASRPipeline(BasePipeline):
         audio_file_path: str,
         language: str | None = None,
         task: Literal["transcribe", "translate"] = "transcribe",
-        timestamp_type: Literal["chunk", "word"] = "chunk",
+        timestamp_type: Literal["chunk", "word"] = constants.DEFAULT_TIMESTAMP_TYPE,
         progress_callback: Callable[[str, int, int, str | None], None] | None = None,
         **kwargs: object,
     ) -> dict[str, Any]:

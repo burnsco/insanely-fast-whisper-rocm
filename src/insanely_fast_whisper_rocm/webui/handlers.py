@@ -27,6 +27,7 @@ from insanely_fast_whisper_rocm.core.errors import (
     TranscriptionError,
 )
 from insanely_fast_whisper_rocm.core.formatters import FORMATTERS
+from insanely_fast_whisper_rocm.core.integrations.alass import sync_subtitle_with_alass
 from insanely_fast_whisper_rocm.core.integrations.stable_ts import stabilize_timestamps
 from insanely_fast_whisper_rocm.core.orchestrator import create_orchestrator
 from insanely_fast_whisper_rocm.utils import constant as constants
@@ -108,6 +109,7 @@ def transcribe(
             total_files_for_session,
         )
         original_file_name_for_desc = Path(audio_file_path).name
+        original_media_path = Path(audio_file_path)
 
         cancellation_token = CancellationToken()
 
@@ -350,6 +352,29 @@ def transcribe(
                 )
 
             _ensure_not_cancelled()
+
+        subtitle_sync_metadata: dict[str, Any] = {
+            "enabled": bool(config.subtitle_sync),
+            "engine": "alass",
+            "applied": False,
+            "reason": "disabled",
+            "runtime_ms": None,
+        }
+        if config.subtitle_sync:
+            if original_media_path.suffix.lower() in constants.SUPPORTED_VIDEO_FORMATS:
+                generated_srt = FORMATTERS["srt"].format(
+                    result,
+                    timestamp_type=config.timestamp_type,
+                )
+                synced_srt, subtitle_sync_metadata = sync_subtitle_with_alass(
+                    reference_media_path=original_media_path,
+                    subtitle_content=generated_srt,
+                )
+                if subtitle_sync_metadata.get("applied"):
+                    result["srt_synced_text"] = synced_srt
+            else:
+                subtitle_sync_metadata["reason"] = "non_video_input"
+        result["subtitle_sync"] = subtitle_sync_metadata
 
         logger.info("Transcription completed successfully for %s", audio_file_path)
 

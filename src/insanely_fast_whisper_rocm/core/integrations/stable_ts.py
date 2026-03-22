@@ -6,6 +6,7 @@ Provides `stabilize_timestamps` to refine Whisper transcription results using
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import Callable
 from pathlib import Path
@@ -83,6 +84,33 @@ def _to_dict(obj: object) -> dict[str, Any]:
             converter = cast(Callable[[], dict[str, Any]], getattr(obj, attr))
             return converter()
     return {"text": str(obj)}
+
+
+def _filter_supported_kwargs(
+    func: Callable[..., object],
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    """Return only keyword arguments accepted by ``func``.
+
+    Args:
+        func: Callable that will receive keyword arguments.
+        kwargs: Candidate keyword arguments.
+
+    Returns:
+        A filtered copy containing only supported keyword arguments. If the
+        callable accepts ``**kwargs``, all arguments are preserved.
+    """
+    try:
+        signature = inspect.signature(func)
+    except (TypeError, ValueError):
+        return kwargs
+
+    parameters = signature.parameters.values()
+    if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters):
+        return kwargs
+
+    supported = {param.name for param in parameters}
+    return {key: value for key, value in kwargs.items() if key in supported}
 
 
 def _convert_to_stable(result: dict[str, Any]) -> dict[str, Any]:
@@ -284,12 +312,29 @@ def stabilize_timestamps(
             progress_cb(
                 f"stable-ts: running (demucs={demucs}, vad={vad}, thr={vad_threshold})"
             )
+        transcribe_any_kwargs: dict[str, Any] = {
+            "audio": str(audio_path),
+            "check_sorted": False,
+            "vad": vad,
+            "vad_threshold": vad_threshold,
+            "demucs": demucs,
+            "gap_padding": gap_padding,
+            # Support both names across stable-whisper versions.
+            "suppress_ts_tokens": suppress_ts_tokens,
+            # stable-whisper 2.19.x uses this older parameter name.
+            "suppress_word_ts": suppress_ts_tokens,
+        }
+        if nonspeech_skip is not None:
+            transcribe_any_kwargs["nonspeech_skip"] = nonspeech_skip
+        if demucs:
+            transcribe_any_kwargs["denoiser"] = "demucs"
+
         refined = stable_whisper.transcribe_any(
             inference_func,
-            audio=str(audio_path),
-            denoiser="demucs" if demucs else None,
-            check_sorted=False,
-            **common_kwargs,
+            **_filter_supported_kwargs(
+                stable_whisper.transcribe_any,
+                transcribe_any_kwargs,
+            ),
         )
         refined = _apply_gap_adjustment(refined)
         refined_dict = _to_dict(refined)

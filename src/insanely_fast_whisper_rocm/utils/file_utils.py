@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from fastapi import HTTPException, UploadFile
 
 from insanely_fast_whisper_rocm.utils.constant import (
-    SUPPORTED_AUDIO_FORMATS,
+    SUPPORTED_UPLOAD_FORMATS,
     UPLOAD_DIR,
 )
 
@@ -18,22 +18,22 @@ logger = logging.getLogger(__name__)
 
 
 def validate_audio_file(file: UploadFile) -> None:
-    """Validate that the uploaded file is a supported audio format.
+    """Validate that the uploaded file is a supported media format.
 
     Args:
         file: The uploaded file to validate
 
     Raises:
-        HTTPException: If the file format is not supported
+        HTTPException: If the file format is not supported.
     """
     filename = file.filename or ""
     file_ext = os.path.splitext(filename.lower())[1]
-    if file_ext not in SUPPORTED_AUDIO_FORMATS:
+    if file_ext not in SUPPORTED_UPLOAD_FORMATS:
         raise HTTPException(
             status_code=400,
             detail=(
                 "Unsupported file format. Supported formats: "
-                f"{', '.join(SUPPORTED_AUDIO_FORMATS)}"
+                f"{', '.join(sorted(SUPPORTED_UPLOAD_FORMATS))}"
             ),
         )
 

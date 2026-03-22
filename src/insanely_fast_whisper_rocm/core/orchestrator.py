@@ -22,7 +22,10 @@ from insanely_fast_whisper_rocm.core.errors import (
     TranscriptionError,
 )
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
-from insanely_fast_whisper_rocm.utils.constant import MIN_BATCH_SIZE
+from insanely_fast_whisper_rocm.utils.constant import (
+    DEFAULT_TIMESTAMP_TYPE,
+    MIN_BATCH_SIZE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +38,9 @@ def _format_backend_config(config: HuggingFaceBackendConfig) -> str:
     """
     return (
         f"model={config.model_name} device={config.device} dtype={config.dtype} "
-        f"batch_size={config.batch_size} chunk_length={config.chunk_length}"
+        f"batch_size={config.batch_size} chunk_length={config.chunk_length} "
+        f"condition_on_prev_tokens={config.condition_on_prev_tokens} "
+        f"sequential_long_form={config.sequential_long_form}"
     )
 
 
@@ -52,6 +57,8 @@ def _backend_config_to_dict(config: HuggingFaceBackendConfig) -> dict[str, Any]:
         "batch_size": config.batch_size,
         "chunk_length": config.chunk_length,
         "progress_group_size": config.progress_group_size,
+        "condition_on_prev_tokens": config.condition_on_prev_tokens,
+        "sequential_long_form": config.sequential_long_form,
     }
 
 
@@ -86,6 +93,8 @@ class TranscriptionOrchestrator:
             batch_size=new_batch_size,
             chunk_length=config.chunk_length,
             progress_group_size=config.progress_group_size,
+            condition_on_prev_tokens=config.condition_on_prev_tokens,
+            sequential_long_form=config.sequential_long_form,
         )
 
     def _get_cpu_fallback_config(
@@ -107,6 +116,8 @@ class TranscriptionOrchestrator:
             batch_size=min(config.batch_size, 2),
             chunk_length=min(config.chunk_length, 15),
             progress_group_size=config.progress_group_size,
+            condition_on_prev_tokens=config.condition_on_prev_tokens,
+            sequential_long_form=config.sequential_long_form,
         )
 
     def run_transcription(
@@ -115,7 +126,7 @@ class TranscriptionOrchestrator:
         backend_config: HuggingFaceBackendConfig,
         task: Literal["transcribe", "translate"] = "transcribe",
         language: str | None = None,
-        timestamp_type: bool | Literal["chunk", "word"] = True,
+        timestamp_type: bool | Literal["chunk", "word"] = DEFAULT_TIMESTAMP_TYPE,
         progress_callback: ProgressCallback | None = None,
         warning_callback: Callable[[str], None] | None = None,
         save_transcriptions: bool = True,

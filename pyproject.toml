@@ -2,7 +2,7 @@
 name = "insanely-fast-whisper-rocm"
 version = "2.1.5"
 description = "ROCm-first Whisper transcription with FastAPI, CLI, and optional Gradio UI"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.11"
 authors = [
     {name = "elvee"},
 ]

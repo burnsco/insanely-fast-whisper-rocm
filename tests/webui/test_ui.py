@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import gradio as gr
 
+from insanely_fast_whisper_rocm.utils.constant import DEFAULT_TIMESTAMP_TYPE
 from insanely_fast_whisper_rocm.webui.ui import (
     _create_file_handling_ui,
     _create_model_config_ui,
@@ -99,6 +100,7 @@ class TestCreateStabilizationUI:
                 stabilize,
                 demucs,
                 vad,
+                subtitle_sync,
                 vad_threshold,
                 suppress_ts_tokens,
                 gap_padding,
@@ -110,6 +112,7 @@ class TestCreateStabilizationUI:
             assert isinstance(stabilize, gr.Checkbox)
             assert isinstance(demucs, gr.Checkbox)
             assert isinstance(vad, gr.Checkbox)
+            assert isinstance(subtitle_sync, gr.Checkbox)
             assert isinstance(vad_threshold, gr.Slider)
             assert isinstance(suppress_ts_tokens, gr.Checkbox)
             assert isinstance(gap_padding, gr.Textbox)
@@ -124,6 +127,7 @@ class TestCreateStabilizationUI:
                 stabilize,
                 demucs,
                 vad,
+                subtitle_sync,
                 vad_threshold,
                 suppress_ts_tokens,
                 gap_padding,
@@ -134,6 +138,7 @@ class TestCreateStabilizationUI:
                 default_stabilize=True,
                 default_demucs=True,
                 default_vad=True,
+                default_subtitle_sync=True,
                 default_vad_threshold=0.5,
                 default_suppress_ts_tokens=False,
                 default_gap_padding=" pad ",
@@ -144,6 +149,7 @@ class TestCreateStabilizationUI:
             assert stabilize.value is True
             assert demucs.value is True
             assert vad.value is True
+            assert subtitle_sync.value is True
             assert vad_threshold.value == 0.5
             assert suppress_ts_tokens.value is False
             assert gap_padding.value == " pad "
@@ -154,7 +160,7 @@ class TestCreateStabilizationUI:
     def test_create_stabilization_ui__vad_threshold_range(self) -> None:
         """Test that vad_threshold slider has correct range."""
         with gr.Blocks():
-            _, _, _, vad_threshold, *_rest = _create_stabilization_ui()
+            _, _, _, _, vad_threshold, *_rest = _create_stabilization_ui()
 
             assert vad_threshold.minimum == 0.1
             assert vad_threshold.maximum == 0.9
@@ -190,6 +196,7 @@ class TestCreateTaskConfigUI:
             timestamp_type, language, task = _create_task_config_ui()
 
             assert isinstance(timestamp_type, gr.Radio)
+            assert timestamp_type.value == DEFAULT_TIMESTAMP_TYPE
             assert isinstance(language, gr.Textbox)
             assert isinstance(task, gr.Radio)
 
@@ -259,6 +266,7 @@ class TestProcessTranscriptionRequestWrapper:
             stabilize=True,
             demucs=False,
             vad=True,
+            subtitle_sync=True,
             vad_threshold=0.35,
             suppress_ts_tokens=False,
             gap_padding=" pre-roll ",
@@ -286,6 +294,7 @@ class TestProcessTranscriptionRequestWrapper:
         assert transcription_cfg.stabilize is True
         assert transcription_cfg.demucs is False
         assert transcription_cfg.vad is True
+        assert transcription_cfg.subtitle_sync is True
         assert transcription_cfg.vad_threshold == 0.35
         assert transcription_cfg.suppress_ts_tokens is False
         assert transcription_cfg.gap_padding == " pre-roll "
@@ -320,6 +329,7 @@ class TestProcessTranscriptionRequestWrapper:
             stabilize=False,
             demucs=False,
             vad=False,
+            subtitle_sync=True,
             vad_threshold=0.35,
             suppress_ts_tokens=True,
             gap_padding=" ...",
@@ -352,6 +362,7 @@ class TestProcessTranscriptionRequestWrapper:
             stabilize=False,
             demucs=False,
             vad=False,
+            subtitle_sync=True,
             vad_threshold=0.35,
             suppress_ts_tokens=True,
             gap_padding=" ...",
@@ -421,6 +432,7 @@ class TestCreateUIComponents:
             gr.Checkbox(),
             gr.Checkbox(),
             gr.Checkbox(),
+            gr.Checkbox(),
             gr.Slider(0, 1),
             gr.Checkbox(),
             gr.Textbox(),
@@ -436,6 +448,7 @@ class TestCreateUIComponents:
             default_stabilize=True,
             default_demucs=False,
             default_vad=True,
+            default_subtitle_sync=True,
             default_vad_threshold=0.4,
             default_suppress_ts_tokens=False,
             default_gap_padding=" pad ",
@@ -450,6 +463,7 @@ class TestCreateUIComponents:
             default_stabilize=True,
             default_demucs=False,
             default_vad=True,
+            default_subtitle_sync=True,
             default_vad_threshold=0.4,
             default_suppress_ts_tokens=False,
             default_gap_padding=" pad ",

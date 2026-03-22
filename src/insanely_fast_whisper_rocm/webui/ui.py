@@ -17,6 +17,7 @@ from insanely_fast_whisper_rocm.utils.constant import (
     DEFAULT_LANGUAGE,
     DEFAULT_MODEL,
     DEFAULT_NONSPEECH_SKIP,
+    DEFAULT_SUBTITLE_SYNC,
     DEFAULT_SUPPRESS_TS_TOKENS,
     DEFAULT_TIMESTAMP_TYPE,
     DEFAULT_TRANSCRIPTS_DIR,
@@ -127,11 +128,13 @@ def _create_stabilization_ui(
     default_demucs: bool = False,
     default_vad: bool = False,
     default_vad_threshold: float = 0.35,
+    default_subtitle_sync: bool = DEFAULT_SUBTITLE_SYNC,
     default_suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS,
     default_gap_padding: str = DEFAULT_GAP_PADDING,
     default_adjust_gaps: bool = DEFAULT_ADJUST_GAPS,
     default_nonspeech_skip: float | None = DEFAULT_NONSPEECH_SKIP,
 ) -> tuple[
+    gr.Checkbox,
     gr.Checkbox,
     gr.Checkbox,
     gr.Checkbox,
@@ -161,6 +164,11 @@ def _create_stabilization_ui(
             value=default_demucs, label="Use Demucs noise reduction (--demucs)"
         )
         vad = gr.Checkbox(value=default_vad, label="Enable VAD (--vad)")
+        subtitle_sync = gr.Checkbox(
+            value=default_subtitle_sync,
+            label="Enable subtitle sync with ALASS",
+            info="Synchronizes generated SRT output to video media when available.",
+        )
         vad_threshold = gr.Slider(
             minimum=0.1,
             maximum=0.9,
@@ -205,6 +213,7 @@ def _create_stabilization_ui(
         stabilize,
         demucs,
         vad,
+        subtitle_sync,
         vad_threshold,
         suppress_ts_tokens,
         gap_padding,
@@ -277,6 +286,7 @@ def _process_transcription_request_wrapper(
     stabilize: bool,
     demucs: bool,
     vad: bool,
+    subtitle_sync: bool,
     vad_threshold: float,
     suppress_ts_tokens: bool,
     gap_padding: str,
@@ -313,6 +323,7 @@ def _process_transcription_request_wrapper(
     transcription_cfg.stabilize = stabilize
     transcription_cfg.demucs = demucs
     transcription_cfg.vad = vad
+    transcription_cfg.subtitle_sync = subtitle_sync
     transcription_cfg.vad_threshold = vad_threshold
     transcription_cfg.suppress_ts_tokens = suppress_ts_tokens
     transcription_cfg.gap_padding = gap_padding
@@ -333,6 +344,7 @@ def create_ui_components(
     default_demucs: bool = False,
     default_vad: bool = False,
     default_vad_threshold: float = 0.35,
+    default_subtitle_sync: bool = DEFAULT_SUBTITLE_SYNC,
     default_suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS,
     default_gap_padding: str = DEFAULT_GAP_PADDING,
     default_adjust_gaps: bool = DEFAULT_ADJUST_GAPS,
@@ -371,6 +383,7 @@ def create_ui_components(
                     stabilize_opt,
                     demucs_opt,
                     vad_opt,
+                    subtitle_sync_opt,
                     vad_threshold_opt,
                     suppress_ts_tokens_opt,
                     gap_padding_opt,
@@ -381,6 +394,7 @@ def create_ui_components(
                     default_stabilize=default_stabilize,
                     default_demucs=default_demucs,
                     default_vad=default_vad,
+                    default_subtitle_sync=default_subtitle_sync,
                     default_vad_threshold=default_vad_threshold,
                     default_suppress_ts_tokens=default_suppress_ts_tokens,
                     default_gap_padding=default_gap_padding,
@@ -448,6 +462,7 @@ def create_ui_components(
                 stabilize_opt,
                 demucs_opt,
                 vad_opt,
+                subtitle_sync_opt,
                 vad_threshold_opt,
                 suppress_ts_tokens_opt,
                 gap_padding_opt,

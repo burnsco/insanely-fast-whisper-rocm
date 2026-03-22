@@ -45,7 +45,14 @@ def prepare_temp_downloadable_file(
     if not formatter:
         raise ValueError(f"No formatter available for type: {format_type}")
 
-    content = formatter.format(raw_data)
+    if (
+        format_type == "srt"
+        and isinstance(raw_data.get("srt_synced_text"), str)
+        and raw_data["srt_synced_text"].strip()
+    ):
+        content = raw_data["srt_synced_text"]
+    else:
+        content = formatter.format(raw_data)
     filename = _filename_generator.create_filename(
         audio_path=original_audio_stem,
         task=task,

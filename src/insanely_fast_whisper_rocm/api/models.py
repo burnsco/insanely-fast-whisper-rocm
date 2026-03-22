@@ -36,3 +36,7 @@ class TranscriptionResponse(BaseModel):
     runtime_seconds: float | None = Field(
         None, description="Processing time in seconds"
     )
+    subtitle_sync: dict[str, object] | None = Field(
+        None,
+        description="Subtitle synchronization metadata (engine, applied, reason)",
+    )

@@ -79,3 +79,47 @@ def test_transcribe_handler_without_stabilization(
     transcribe(audio_file_path="dummy.wav", config=config, file_config=MagicMock())
 
     mock_stabilize.assert_not_called()
+
+
+def test_transcribe_handler_video__applies_subtitle_sync() -> None:
+    """Run ALASS sync for video inputs when subtitle sync is enabled."""
+    with (
+        patch(
+            "insanely_fast_whisper_rocm.webui.handlers.create_orchestrator"
+        ) as mock_create_orchestrator,
+        patch(
+            "insanely_fast_whisper_rocm.webui.handlers.extract_audio_from_video",
+            return_value="dummy.wav",
+        ),
+        patch(
+            "insanely_fast_whisper_rocm.webui.handlers.sync_subtitle_with_alass"
+        ) as mock_sync,
+    ):
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.run_transcription.return_value = {
+            "text": "hello",
+            "segments": [{"start": 0.0, "end": 1.0, "text": "hello"}],
+            "chunks": [],
+        }
+        mock_create_orchestrator.return_value = mock_orchestrator
+        mock_sync.return_value = (
+            "1\n00:00:01,000 --> 00:00:02,000\nhello\n",
+            {
+                "enabled": True,
+                "engine": "alass",
+                "applied": True,
+                "reason": None,
+                "runtime_ms": 8,
+            },
+        )
+
+        config = TranscriptionConfig(stabilize=False, subtitle_sync=True)
+        result = transcribe(
+            audio_file_path="dummy.mp4",
+            config=config,
+            file_config=MagicMock(),
+        )
+
+    mock_sync.assert_called_once()
+    assert result["subtitle_sync"]["applied"] is True
+    assert "srt_synced_text" in result

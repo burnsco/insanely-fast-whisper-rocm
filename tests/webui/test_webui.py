@@ -47,7 +47,7 @@ def _predict(client: Client, audio_path: Path) -> list[Any]:
         "openai/whisper-tiny",  # model
         "cpu",  # device
         16,  # batch_size
-        "chunk",  # timestamp_type
+        "word",  # timestamp_type
         "en",  # language
         "transcribe",  # task
         "float16",  # dtype
@@ -55,6 +55,7 @@ def _predict(client: Client, audio_path: Path) -> list[Any]:
         False,  # stabilize
         False,  # demucs
         False,  # vad
+        True,  # subtitle_sync
         0.35,  # vad_threshold
         True,  # suppress_ts_tokens
         " ...",  # gap_padding

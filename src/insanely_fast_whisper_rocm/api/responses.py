@@ -202,13 +202,20 @@ class ResponseFormatter:
             )
             if language:
                 verbose_payload["language"] = language
+            subtitle_sync_meta = result.get("subtitle_sync")
+            if isinstance(subtitle_sync_meta, dict):
+                verbose_payload["subtitle_sync"] = subtitle_sync_meta
             return JSONResponse(content=verbose_payload)
 
         # Subtitle formats (SRT/VTT)
         if response_format in (RESPONSE_FORMAT_SRT, RESPONSE_FORMAT_VTT):
             if response_format == RESPONSE_FORMAT_SRT:
-                formatter = ResponseFormatter._get_formatter("srt")
-                text_output = ResponseFormatter._call_formatter(formatter, result)
+                synced_srt = result.get("srt_synced_text")
+                if isinstance(synced_srt, str) and synced_srt.strip():
+                    text_output = synced_srt
+                else:
+                    formatter = ResponseFormatter._get_formatter("srt")
+                    text_output = ResponseFormatter._call_formatter(formatter, result)
                 mime = "text/srt"
             else:
                 formatter = ResponseFormatter._get_formatter("vtt")
@@ -274,16 +281,23 @@ class ResponseFormatter:
             ).get("language")
             if language:
                 verbose_payload["language"] = language
+            subtitle_sync_meta = transcription_output.get("subtitle_sync")
+            if isinstance(subtitle_sync_meta, dict):
+                verbose_payload["subtitle_sync"] = subtitle_sync_meta
             return JSONResponse(content=verbose_payload)
 
         # Subtitle formats
         if response_format in (RESPONSE_FORMAT_SRT, RESPONSE_FORMAT_VTT):
             transcription_output = result.get("transcription", result)
             if response_format == RESPONSE_FORMAT_SRT:
-                formatter = ResponseFormatter._get_formatter("srt")
-                text_output = ResponseFormatter._call_formatter(
-                    formatter, transcription_output
-                )
+                synced_srt = transcription_output.get("srt_synced_text")
+                if isinstance(synced_srt, str) and synced_srt.strip():
+                    text_output = synced_srt
+                else:
+                    formatter = ResponseFormatter._get_formatter("srt")
+                    text_output = ResponseFormatter._call_formatter(
+                        formatter, transcription_output
+                    )
                 mime = "text/srt"
             else:
                 formatter = ResponseFormatter._get_formatter("vtt")

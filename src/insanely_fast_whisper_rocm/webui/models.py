@@ -26,6 +26,7 @@ class TranscriptionConfig:  # pylint: disable=too-many-instance-attributes
     demucs: bool = constants.DEFAULT_DEMUCS
     vad: bool = constants.DEFAULT_VAD
     vad_threshold: float = constants.DEFAULT_VAD_THRESHOLD
+    subtitle_sync: bool = constants.DEFAULT_SUBTITLE_SYNC
     suppress_ts_tokens: bool = constants.DEFAULT_SUPPRESS_TS_TOKENS
     gap_padding: str = constants.DEFAULT_GAP_PADDING
     adjust_gaps: bool = constants.DEFAULT_ADJUST_GAPS

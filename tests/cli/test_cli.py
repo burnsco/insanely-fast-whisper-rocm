@@ -39,8 +39,10 @@ class TestCLIFacade:
         assert "device" in config
         assert "batch_size" in config
         assert "language" in config
+        assert "timestamp_type" in config
         assert config["model"] == constants.DEFAULT_MODEL
         assert config["batch_size"] == constants.DEFAULT_BATCH_SIZE
+        assert config["timestamp_type"] == constants.DEFAULT_TIMESTAMP_TYPE
 
     def test_create_backend_config_defaults(self) -> None:
         """Test backend configuration creation with defaults."""

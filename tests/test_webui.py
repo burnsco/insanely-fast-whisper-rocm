@@ -105,7 +105,7 @@ def test_webui_transcription() -> None:
                     "openai/whisper-tiny",  # model
                     "cpu",  # device
                     16,  # batch_size
-                    "chunk",  # timestamp_type
+                    "word",  # timestamp_type
                     "en",  # language
                     "transcribe",  # task
                     "float16",  # dtype
@@ -158,7 +158,7 @@ def test_long_audio_transcription() -> None:
                     "openai/whisper-tiny",  # model
                     "cpu",  # device
                     16,  # batch_size
-                    "chunk",  # timestamp_type
+                    "word",  # timestamp_type
                     "en",  # language
                     "transcribe",  # task
                     "float16",  # dtype
@@ -206,7 +206,7 @@ def test_export_formats() -> None:
                     "openai/whisper-tiny",  # model
                     "cpu",  # device
                     16,  # batch_size
-                    "chunk",  # timestamp_type
+                    "word",  # timestamp_type
                     "en",  # language
                     "transcribe",  # task
                     "float16",  # dtype

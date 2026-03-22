@@ -11,32 +11,34 @@ import pytest
 from fastapi.testclient import TestClient
 
 from insanely_fast_whisper_rocm.api.dependencies import (
-    get_asr_pipeline,
+    get_backend_config,
     get_file_handler,
 )
+from insanely_fast_whisper_rocm.core.asr_backend import HuggingFaceBackendConfig
 from insanely_fast_whisper_rocm.main import app
 from insanely_fast_whisper_rocm.utils import FileHandler
 
 
 @pytest.fixture
-def mock_asr_pipeline() -> Iterator[MagicMock]:
-    """Provide a mocked ASR pipeline and override dependency.
+def mock_backend_config() -> Iterator[HuggingFaceBackendConfig]:
+    """Provide a backend config and override dependency.
 
     Yields:
-        MagicMock: The mocked pipeline instance with ``process`` configured.
+        HuggingFaceBackendConfig: Backend config used by route handlers.
     """
-    mock_pipeline = MagicMock()
-    mock_pipeline.process.return_value = {"text": "test"}
-    mock_pipeline.asr_backend.config.model_name = "test-model"
-
-    def get_mock_pipeline() -> MagicMock:
-        return mock_pipeline
-
-    app.dependency_overrides[get_asr_pipeline] = get_mock_pipeline
+    config = HuggingFaceBackendConfig(
+        model_name="test-model",
+        device="cpu",
+        dtype="float16",
+        batch_size=4,
+        chunk_length=30,
+        progress_group_size=1,
+    )
+    app.dependency_overrides[get_backend_config] = lambda: config
     try:
-        yield mock_pipeline
+        yield config
     finally:
-        app.dependency_overrides.pop(get_asr_pipeline, None)
+        app.dependency_overrides.pop(get_backend_config, None)
 
 
 @pytest.fixture
@@ -127,6 +129,7 @@ def test_transcription_with_stabilization_options(
             "demucs": True,
             "vad": True,
             "vad_threshold": 0.7,
+            "subtitle_sync": True,
         },
     )
     assert response.status_code == 200
@@ -139,6 +142,7 @@ def test_transcription_with_stabilization_options(
     assert "demucs" not in call_kwargs
     assert "vad" not in call_kwargs
     assert "vad_threshold" not in call_kwargs
+    assert "subtitle_sync" not in call_kwargs
 
     # Verify valid params ARE passed
     assert "audio_path" in call_kwargs
@@ -163,6 +167,7 @@ def test_translation_with_stabilization_options(
             "demucs": False,
             "vad": True,
             "vad_threshold": 0.8,
+            "subtitle_sync": True,
         },
     )
     assert response.status_code == 200
@@ -175,6 +180,7 @@ def test_translation_with_stabilization_options(
     assert "demucs" not in call_kwargs
     assert "vad" not in call_kwargs
     assert "vad_threshold" not in call_kwargs
+    assert "subtitle_sync" not in call_kwargs
 
     # Verify valid params ARE passed
     assert "audio_path" in call_kwargs
@@ -208,6 +214,27 @@ def test_translation_endpoint_validation(client: TestClient, tmp_path: Path) -> 
         )
     assert response.status_code == 400
     assert "Unsupported file format" in response.json()["detail"]
+
+
+def test_transcription_endpoint_accepts_video_upload(
+    client: TestClient,
+    mock_orchestrator: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Accept MP4 uploads and route through extraction before transcription."""
+    monkeypatch.setattr(
+        "insanely_fast_whisper_rocm.api.routes.extract_audio_from_video",
+        lambda *_args, **_kwargs: "/tmp/extracted.wav",
+    )
+    video_file = io.BytesIO(b"fake-mp4-content")
+    response = client.post(
+        "/v1/audio/transcriptions",
+        files={"file": ("test.mp4", video_file, "video/mp4")},
+        data={"subtitle_sync": True},
+    )
+    assert response.status_code == 200
+    _, call_kwargs = mock_orchestrator.run_transcription.call_args
+    assert call_kwargs["audio_path"] == "/tmp/extracted.wav"
 
 
 @pytest.mark.integration

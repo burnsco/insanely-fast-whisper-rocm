@@ -34,6 +34,7 @@ from insanely_fast_whisper_rocm.core.formatters import (
     FORMATTERS,
     build_quality_segments,
 )
+from insanely_fast_whisper_rocm.core.integrations.alass import sync_subtitle_with_alass
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
 from insanely_fast_whisper_rocm.utils import constant as constants
 from insanely_fast_whisper_rocm.utils.file_utils import cleanup_temp_files
@@ -172,11 +173,14 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
     batch_size: int = kwargs.pop("batch_size")
     progress_group_size: int = kwargs.pop("progress_group_size")
     chunk_length: int = kwargs.pop("chunk_length")
+    condition_on_prev_tokens: bool = kwargs.pop("condition_on_prev_tokens")
+    sequential_long_form: bool = kwargs.pop("sequential_long_form")
     language: str = kwargs.pop("language")
     output: Path | None = kwargs.pop("output", None)
     timestamp_type: str = kwargs.pop("timestamp_type")
     # Stable-ts options
     stabilize: bool = kwargs.pop("stabilize")
+    subtitle_sync: bool = kwargs.pop("subtitle_sync")
     demucs: bool = kwargs.pop("demucs")
     vad: bool = kwargs.pop("vad")
     vad_threshold: float = kwargs.pop("vad_threshold")
@@ -250,10 +254,13 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
             "batch_size": batch_size,
             "progress_group_size": progress_group_size,
             "chunk_length": chunk_length,
+            "condition_on_prev_tokens": condition_on_prev_tokens,
+            "sequential_long_form": sequential_long_form,
             "language": processed_language,
             "output": str(output) if output else None,
             "timestamp_type": timestamp_type,
             "stabilize": stabilize,
+            "subtitle_sync": subtitle_sync,
             "demucs": demucs,
             "vad": vad,
             "vad_threshold": vad_threshold,
@@ -285,6 +292,7 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
         logging.getLogger("insanely_fast_whisper_rocm").setLevel(logging.ERROR)
 
     # If a video file was supplied, extract its audio first
+    original_media_path = audio_file
     if audio_file.suffix.lower() in constants.SUPPORTED_VIDEO_FORMATS:
         try:
             reporter.on_postprocess_started("extract-audio")
@@ -319,6 +327,8 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
             batch_size=batch_size,
             chunk_length=chunk_length,
             progress_group_size=progress_group_size,
+            condition_on_prev_tokens=condition_on_prev_tokens,
+            sequential_long_form=sequential_long_form,
             language=processed_language,
             task=typed_task,
             return_timestamps_value=return_timestamps_value,
@@ -423,11 +433,13 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
         _handle_output_and_benchmarks(
             task=task,
             audio_file=audio_file,
+            original_media_path=original_media_path,
             result=result,
             total_time=total_time,
             output=output,
             export_format=export_format,
             export_format_explicit=export_format_explicit,
+            subtitle_sync=subtitle_sync,
             benchmark_enabled=benchmark,
             benchmark_extra=benchmark_extra,
             benchmark_flags=benchmark_flags,
@@ -508,11 +520,13 @@ def _handle_output_and_benchmarks(
     *,
     task: str,
     audio_file: Path,
+    original_media_path: Path | None = None,
     result: dict[str, Any],
     total_time: float,
     output: Path | None,
     export_format: str,
     export_format_explicit: bool,
+    subtitle_sync: bool = constants.DEFAULT_SUBTITLE_SYNC,
     benchmark_enabled: bool,
     benchmark_extra: tuple[str, ...],
     benchmark_flags: dict[str, Any] | None,
@@ -528,7 +542,9 @@ def _handle_output_and_benchmarks(
 
     Args:
         task: Task name ("transcribe" or "translate").
-        audio_file: Path to the original audio file.
+        audio_file: Path to the transcribed audio file (may be extracted from video).
+        original_media_path: Original user input path before any extraction.
+            Defaults to ``audio_file`` when omitted.
         result: Result dictionary returned by the backend.
         total_time: Total wall-clock time for the operation in seconds.
         output: Optional explicit output file path when a single format is
@@ -537,6 +553,7 @@ def _handle_output_and_benchmarks(
         export_format_explicit: Whether the export format was explicitly chosen
             by the user via CLI flags.
         benchmark_enabled: Whether to collect benchmark metrics.
+        subtitle_sync: Whether to run ALASS subtitle synchronization.
         benchmark_extra: Additional key=value entries to include in the
             benchmark record.
         benchmark_flags: Mapping of CLI flag names to the values used.
@@ -552,6 +569,12 @@ def _handle_output_and_benchmarks(
     """
     if cancellation_token is not None and cancellation_token.cancelled:
         raise TranscriptionCancelledError("Transcription cancelled by user")
+    effective_media_path = original_media_path or audio_file
+    timestamp_type = (
+        result.get("config_used", {}).get("timestamp_type")
+        if isinstance(result.get("config_used"), dict)
+        else None
+    )
 
     # Decide which formats to export
     if export_format == "all":
@@ -577,6 +600,7 @@ def _handle_output_and_benchmarks(
         "chunks": result.get("chunks", []),
         "metadata": {
             "audio_file": str(audio_file.resolve()),
+            "reference_media_file": str(effective_media_path.resolve()),
             "total_time_seconds": round(total_time, 2),
             "processing_time_seconds": result.get("runtime_seconds"),
             "config_used": result.get("config_used", {}),
@@ -585,6 +609,13 @@ def _handle_output_and_benchmarks(
     }
 
     formatted_by_format: dict[str, str] = {}
+    subtitle_sync_meta: dict[str, Any] = {
+        "enabled": bool(subtitle_sync),
+        "engine": "alass",
+        "applied": False,
+        "reason": "disabled",
+        "runtime_ms": None,
+    }
 
     # ------------------------------------------------------------------ #
     # Compute format quality metrics (if benchmarking enabled)          #
@@ -592,7 +623,10 @@ def _handle_output_and_benchmarks(
     format_quality_by_format: dict[str, Any] = {}
     if benchmark_enabled:
         try:
-            quality_segments = build_quality_segments(detailed_result)
+            quality_segments = build_quality_segments(
+                detailed_result,
+                timestamp_type=timestamp_type,
+            )
             logger.debug(
                 "Built %d quality segments for SRT quality scoring",
                 len(quality_segments),
@@ -600,7 +634,10 @@ def _handle_output_and_benchmarks(
             srt_formatter = FORMATTERS["srt"]
             srt_text = formatted_by_format.get("srt")
             if srt_text is None:
-                srt_text = srt_formatter.format(detailed_result)
+                srt_text = srt_formatter.format(
+                    detailed_result,
+                    timestamp_type=timestamp_type,
+                )
                 formatted_by_format["srt"] = srt_text
             srt_quality = compute_srt_quality(
                 segments=quality_segments,
@@ -610,6 +647,28 @@ def _handle_output_and_benchmarks(
             format_quality_by_format["srt"] = srt_quality
         except Exception:  # pragma: no cover - defensive logging
             logger.exception("Failed to compute SRT quality metrics")
+
+    if subtitle_sync:
+        media_suffix = effective_media_path.suffix.lower()
+        if media_suffix in constants.SUPPORTED_VIDEO_FORMATS:
+            srt_formatter = FORMATTERS["srt"]
+            generated_srt = formatted_by_format.get("srt")
+            if generated_srt is None:
+                generated_srt = srt_formatter.format(
+                    detailed_result,
+                    timestamp_type=timestamp_type,
+                )
+                formatted_by_format["srt"] = generated_srt
+            synced_srt, subtitle_sync_meta = sync_subtitle_with_alass(
+                reference_media_path=effective_media_path,
+                subtitle_content=generated_srt,
+            )
+            if subtitle_sync_meta.get("applied"):
+                formatted_by_format["srt"] = synced_srt
+        else:
+            subtitle_sync_meta["reason"] = "non_video_input"
+    result["subtitle_sync"] = subtitle_sync_meta
+    detailed_result["metadata"]["subtitle_sync"] = subtitle_sync_meta
 
     # ------------------------------------------------------------------ #
     # Export each requested format                                       #
@@ -627,7 +686,10 @@ def _handle_output_and_benchmarks(
         formatter = FORMATTERS[fmt]
         content = formatted_by_format.get(fmt)
         if content is None:
-            content = formatter.format(detailed_result)
+            content = formatter.format(
+                detailed_result,
+                timestamp_type=timestamp_type,
+            )
             formatted_by_format[fmt] = content
         ext = formatter.get_file_extension()
 
