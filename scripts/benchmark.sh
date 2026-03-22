@@ -23,7 +23,7 @@ set -e
 #     --export-format srt --benchmark --quiet
 #
 #   scripts/benchmark.sh \
-#     -a uploads/foo.mp3 -m distil-whisper/distil-large-v3 \
+#     -a uploads/foo.mp3 -m distil-whisper/distil-large-v3.5 \
 #     --device cuda:0 --dtype float16 --language en \
 #     --stabilize --vad --vad-threshold 0.35 \
 #     --demucs --repeats 2 --progress --no-quiet
@@ -102,7 +102,7 @@ run_cmd_str() {
 # Multiple models supported; defaults to two models.
 MODELS=(
   "openai/whisper-medium"
-  "distil-whisper/distil-large-v3"
+  "distil-whisper/distil-large-v3.5"
 )
 MODEL=""               # Back-compat single-model flag; accumulated into MODELS
 DEVICE=""              # Let CLI defaults apply when empty
@@ -136,7 +136,7 @@ ${BOLD}${CYAN}Usage:${RESET} scripts/benchmark.sh [options]
 ${BOLD}${CYAN}Options:${RESET}
   -a, --audio PATH                    Audio file to process (can be repeated)
   -m, --model NAME                    Model name (can be repeated). Defaults:
-                                      openai/whisper-medium, distil-whisper/distil-large-v3
+                                      openai/whisper-medium, distil-whisper/distil-large-v3.5
       --models LIST                   Comma-separated model list (overrides defaults)
       --device NAME                   Device for inference (e.g., cuda:0, cpu)
       --dtype {float16,float32}       Data type for inference

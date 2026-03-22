@@ -8,14 +8,12 @@ from __future__ import annotations
 
 import gc
 import logging
-import os
 import time
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-import torch
 from transformers import (
     AutoFeatureExtractor,
     AutoModelForSpeechSeq2Seq,
@@ -35,6 +33,11 @@ from insanely_fast_whisper_rocm.core.errors import (
 from insanely_fast_whisper_rocm.core.oom_utils import classify_oom_error
 from insanely_fast_whisper_rocm.core.progress import NoOpProgress, ProgressCallback
 from insanely_fast_whisper_rocm.core.utils import convert_device_string
+from insanely_fast_whisper_rocm.utils.constant import ROCM_PATH
+from insanely_fast_whisper_rocm.utils.torch_runtime import (
+    ensure_torch_runtime,
+    torch,
+)
 
 # Placeholder for logger, will be configured properly later
 logger = logging.getLogger(__name__)
@@ -95,19 +98,18 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
                 available on the system.
         """
         if "cuda" in self.effective_device and not torch.cuda.is_available():
-            rocm_path = os.getenv("ROCM_PATH")
             hip_version = getattr(torch.version, "hip", None)
-            if rocm_path and hip_version is None:
+            if ROCM_PATH and hip_version is None:
                 raise DeviceNotFoundError(
                     "GPU device requested, but the active PyTorch build is not a "
                     "ROCm build. This host exposes ROCm at "
-                    f"{rocm_path}, but torch reports hip=None. Re-run the command "
-                    "with the ROCm extra enabled, for example: "
-                    "`uv run --extra rocm-7-2 ...`."
+                    f"{ROCM_PATH}, but torch reports hip=None. Re-run the command "
+                    "with the ROCm dependency set enabled, for example: "
+                    "`uv run --extra rocm ...`."
                 )
             raise DeviceNotFoundError(
-                f"CUDA device {self.effective_device} requested but CUDA is not "
-                f"available. Try using 'cpu' instead."
+                f"PyTorch GPU device {self.effective_device} requested but the ROCm "
+                f"runtime is not available. Try using 'cpu' instead."
             )
         if self.effective_device == "mps" and not torch.backends.mps.is_available():
             raise DeviceNotFoundError(
@@ -130,6 +132,7 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
             RuntimeError: Propagated for low-level framework errors that may
                 occur prior to wrapping.
         """
+        ensure_torch_runtime()
         if self.asr_pipe is None:
             cb = progress_cb or NoOpProgress()
             cb.on_model_load_started()

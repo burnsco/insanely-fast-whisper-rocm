@@ -17,7 +17,7 @@ from insanely_fast_whisper_rocm.audio import (
     split_audio,
 )
 from insanely_fast_whisper_rocm.core import ASRPipeline
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 
 def _resolve_package_version() -> str:

@@ -14,7 +14,7 @@ from typing import Any
 import click
 import yaml
 
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 try:
     import uvicorn

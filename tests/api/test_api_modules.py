@@ -40,7 +40,7 @@ class TestAppFactory:
         """Test that the app has correct title, description, and version."""
         app = create_app()
         assert app.title == "Insanely Fast Whisper API"
-        assert "FastAPI wrapper" in app.description
+        assert "ROCm-first Whisper" in app.description
         assert app.version == get_project_version()
 
     def test_create_app_has_routes(self) -> None:
@@ -59,10 +59,7 @@ class TestAppFactory:
     def test_app_metadata(self) -> None:
         """Test that the app has correct title, description, and version."""
         assert app.title == "Insanely Fast Whisper API"
-        assert (
-            "A FastAPI wrapper around the insanely-fast-whisper tool."
-            in app.description
-        )
+        assert "ROCm-first Whisper" in app.description
         assert app.version == get_project_version()
 
 

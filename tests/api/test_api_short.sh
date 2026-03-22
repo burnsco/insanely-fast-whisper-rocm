@@ -7,7 +7,7 @@ API_URL="http://localhost:8888"
 AUDIO_FILE="tests/data/conversion-test-file.mp3"
 
 # Set the model to use
-MODEL="distil-whisper/distil-large-v3"
+MODEL="distil-whisper/distil-large-v3.5"
 
 # Set the language to use
 LANGUAGE="nl"

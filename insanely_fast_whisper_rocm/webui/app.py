@@ -10,8 +10,8 @@ import sys
 
 import click
 
-from insanely_fast_whisper_rocm.utils import constants
-from insanely_fast_whisper_rocm.utils.constants import (
+from insanely_fast_whisper_rocm.utils import constant as constants
+from insanely_fast_whisper_rocm.utils.constant import (
     DEFAULT_ADJUST_GAPS,
     DEFAULT_DEMUCS,
     DEFAULT_GAP_PADDING,

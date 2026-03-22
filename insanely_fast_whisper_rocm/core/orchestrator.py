@@ -22,7 +22,7 @@ from insanely_fast_whisper_rocm.core.errors import (
     TranscriptionError,
 )
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
-from insanely_fast_whisper_rocm.utils.constants import MIN_BATCH_SIZE
+from insanely_fast_whisper_rocm.utils.constant import MIN_BATCH_SIZE
 
 logger = logging.getLogger(__name__)
 

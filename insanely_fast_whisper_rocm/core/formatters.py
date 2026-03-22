@@ -17,8 +17,8 @@ from insanely_fast_whisper_rocm.core.segmentation import (
     segment_words,
     split_lines,
 )
-from insanely_fast_whisper_rocm.utils import constants
-from insanely_fast_whisper_rocm.utils.constants import USE_READABLE_SUBTITLES
+from insanely_fast_whisper_rocm.utils import constant as constants
+from insanely_fast_whisper_rocm.utils.constant import USE_READABLE_SUBTITLES
 from insanely_fast_whisper_rocm.utils.format_time import (
     format_srt_time,
     format_vtt_time,

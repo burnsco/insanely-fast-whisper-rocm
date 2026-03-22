@@ -72,8 +72,8 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
             pytest.skip("GPU tests are disabled. Set RUN_GPU_TESTS=1 to enable.")
         try:
             torch = _load_torch()
-        except ModuleNotFoundError:
-            pytest.skip("Torch is not installed in this test environment.")
+        except (ImportError, OSError):
+            pytest.skip("Torch could not be imported in this test environment.")
 
         if not torch.cuda.is_available():
             pytest.skip("ROCm GPU runtime not available in this test environment.")

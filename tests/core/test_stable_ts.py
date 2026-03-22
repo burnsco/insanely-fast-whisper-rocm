@@ -452,9 +452,9 @@ def test_stabilize_with_progress_callback_nonexistent_file(
     st.stable_whisper = mock_sw  # type: ignore
 
     # Ensure SKIP_FS_CHECKS is False so the file check is enforced
-    from insanely_fast_whisper_rocm.utils import constants
+    from insanely_fast_whisper_rocm.utils import constant
 
-    monkeypatch.setattr(constants, "SKIP_FS_CHECKS", False)
+    monkeypatch.setattr(constant, "SKIP_FS_CHECKS", False)
 
     stabilized = st.stabilize_timestamps(result, progress_cb=progress_cb)
 

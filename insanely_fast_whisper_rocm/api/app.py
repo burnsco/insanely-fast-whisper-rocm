@@ -18,7 +18,7 @@ from insanely_fast_whisper_rocm import __version__
 from insanely_fast_whisper_rocm.api.middleware import add_middleware
 from insanely_fast_whisper_rocm.api.routes import router as api_router
 from insanely_fast_whisper_rocm.core.backend_cache import clear_cache
-from insanely_fast_whisper_rocm.utils.constants import (
+from insanely_fast_whisper_rocm.utils.constant import (
     API_DESCRIPTION,
     API_TITLE,
     API_VERSION,

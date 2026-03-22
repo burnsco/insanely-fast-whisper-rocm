@@ -9,7 +9,7 @@ from collections.abc import Sequence
 
 from fastapi import HTTPException, UploadFile
 
-from insanely_fast_whisper_rocm.utils.constants import (
+from insanely_fast_whisper_rocm.utils.constant import (
     SUPPORTED_AUDIO_FORMATS,
     UPLOAD_DIR,
 )

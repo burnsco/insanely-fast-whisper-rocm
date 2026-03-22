@@ -1,61 +1,42 @@
+x-rocm-service: &rocm-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: runtime
+  image: ghcr.io/burnsco/insanely-fast-whisper-rocm:main
+  restart: unless-stopped
+  devices:
+    - /dev/kfd:/dev/kfd
+    - /dev/dri:/dev/dri
+  stdin_open: true
+  tty: true
+  cap_add:
+    - SYS_PTRACE
+  security_opt:
+    - seccomp=unconfined
+  group_add:
+    - video
+  ipc: host
+  shm_size: 8G
+  env_file:
+    - ${HOME}/.config/insanely-fast-whisper-rocm/.env
+  volumes:
+    - ./transcripts:/app/transcripts
+    - ./transcripts-txt:/app/transcripts-txt
+    - ./transcripts-srt:/app/transcripts-srt
+    - ${HOME}/.cache/huggingface/hub:/root/.cache/huggingface/hub
+
 services:
-  insanely-fast-whisper-rocm:
-    build:
-      context: .
-      dockerfile: Dockerfile
-
-    image: ghcr.io/burnsco/insanely-fast-whisper-rocm:main
-    container_name: insanely-fast-whisper-rocm
-    restart: unless-stopped
-
-    # To allow AMD GPU access:
-    devices:
-      - "/dev/kfd:/dev/kfd"
-      - "/dev/dri:/dev/dri"
-    stdin_open: true
-    tty: true
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp=unconfined
-    group_add:
-      - video
-    ipc: host
-    shm_size: 8G
-
-    env_file:
-      # - .env
-      - "$HOME/.config/insanely-fast-whisper-rocm/.env"
-
+  api:
+    <<: *rocm-service
     ports:
-      - "${API_PORT:-8888}:${API_PORT:-8888}"  # API port
-      - "${WEBUI_PORT:-7860}:${WEBUI_PORT:-7860}"  # WebUI port
+      - "${API_PORT:-8888}:8888"
+    command: ["insanely-fast-whisper-rocm", "--host", "0.0.0.0", "--port", "8888"]
 
-    volumes:
-      - "./transcripts:/app/transcripts"
-      - "./transcripts-txt:/app/transcripts-txt"
-      - "./transcripts-srt:/app/transcripts-srt"
-      - "$HOME/.cache/huggingface/hub:/root/.cache/huggingface/hub"
-
-    #################################################
-    ## Default: Gradio WebUI without debug logging ##
-    #################################################
-    command: ["python", "-m", "insanely_fast_whisper_rocm.webui"]    
-    ##############################################
-    ## Alternative commands (uncomment to use): ##
-    ##############################################
-    #
-    # Gradio WebUI with debug logging:
-    # command: ["python", "-m", "insanely_fast_whisper_rocm.webui", "--debug"]
-    #
-    # API only:
-    # command: ["python", "-m", "insanely_fast_whisper_rocm"]
-    #
-    # API with verbose output:
-    # command: ["python", "-m", "insanely_fast_whisper_rocm", "-v"]
-    #
-    # Custom WebUI with extra args:
-    # command: ["python", "-m", "insanely_fast_whisper_rocm.webui", "--port", "7860", "--host", "0.0.0.0", "--debug"]
-    #
-    # CLI tool transcription example:
-    # command: ["python", "-m", "insanely_fast_whisper_rocm.cli", "transcribe", "tests/data/conversion-test-file.mp3", "--debug"]
+  webui:
+    <<: *rocm-service
+    profiles: ["webui"]
+    ports:
+      - "${WEBUI_PORT:-7860}:7860"
+    command:
+      ["insanely-fast-whisper-webui", "--host", "0.0.0.0", "--port", "7860"]

@@ -35,8 +35,8 @@ def test_cli_transcribe_real_media_gpu_smoke(
 
     try:
         torch = _load_torch()
-    except ModuleNotFoundError:
-        pytest.skip("Torch is not installed in this test environment.")
+    except (ImportError, OSError):
+        pytest.skip("Torch could not be imported in this test environment.")
 
     if not torch.cuda.is_available():
         pytest.skip("ROCm GPU runtime not available in this test environment.")

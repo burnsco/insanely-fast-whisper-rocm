@@ -7,7 +7,6 @@ environments and inside Docker containers.
 
 from __future__ import annotations
 
-import os
 import platform
 import shutil
 import subprocess
@@ -15,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant
 
 
 def _read_os_release() -> str:
@@ -122,15 +121,15 @@ def generate_report() -> dict[str, Any]:
         "os": _read_os_release(),
         "kernel": platform.release(),
         "python": sys.version.splitlines()[0],
-        "rocm_path": os.getenv("ROCM_PATH"),
-        "hsa_override_gfx_version": os.getenv("HSA_OVERRIDE_GFX_VERSION"),
-        "pytorch_alloc_conf": os.getenv("PYTORCH_ALLOC_CONF"),
-        "pytorch_hip_alloc_conf": os.getenv("PYTORCH_HIP_ALLOC_CONF"),
-        "torchaudio_use_soundfile": os.getenv("TORCHAUDIO_USE_SOUNDFILE"),
+        "rocm_path": constant.ROCM_PATH,
+        "hsa_override_gfx_version": constant.HSA_OVERRIDE_GFX_VERSION,
+        "pytorch_alloc_conf": constant.PYTORCH_ALLOC_CONF,
+        "pytorch_hip_alloc_conf": constant.PYTORCH_HIP_ALLOC_CONF,
+        "torchaudio_use_soundfile": constant.TORCHAUDIO_USE_SOUNDFILE,
         "ffmpeg_path": shutil.which("ffmpeg"),
         "ffmpeg_version": ffmpeg_version.splitlines()[0] if ffmpeg_version else None,
-        "default_model": constants.DEFAULT_MODEL,
-        "default_device": constants.DEFAULT_DEVICE,
+        "default_model": constant.DEFAULT_MODEL,
+        "default_device": constant.DEFAULT_DEVICE,
     }
     report.update(_torch_report())
     return report

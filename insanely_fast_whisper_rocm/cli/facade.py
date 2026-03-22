@@ -21,7 +21,7 @@ from insanely_fast_whisper_rocm.core.orchestrator import (
 )
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
 from insanely_fast_whisper_rocm.core.utils import convert_device_string
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ class CLIFacade:
             batch_size: Optional batch size for processing.
             chunk_length: Audio chunk length in seconds.
             progress_group_size: Chunks per progress update group. Defaults to
-                :data:`~insanely_fast_whisper_rocm.utils.constants.DEFAULT_PROGRESS_GROUP_SIZE`
+                :data:`~insanely_fast_whisper_rocm.utils.constant.DEFAULT_PROGRESS_GROUP_SIZE`
                 when ``None``.
             language: Optional language code for processing.
             task: Task to perform ("transcribe" or "translate").

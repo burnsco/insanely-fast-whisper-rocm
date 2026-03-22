@@ -9,7 +9,7 @@ from typing import Literal
 
 import gradio as gr
 
-from insanely_fast_whisper_rocm.utils.constants import (
+from insanely_fast_whisper_rocm.utils.constant import (
     DEFAULT_ADJUST_GAPS,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DEVICE,
@@ -24,10 +24,10 @@ from insanely_fast_whisper_rocm.utils.constants import (
     MIN_BATCH_SIZE,
     SUPPORTED_UPLOAD_FORMATS,
 )
-from insanely_fast_whisper_rocm.webui.handlers import (
+from insanely_fast_whisper_rocm.webui.handlers import process_transcription_request
+from insanely_fast_whisper_rocm.webui.models import (
     FileHandlingConfig,
     TranscriptionConfig,
-    process_transcription_request,
 )
 
 # Configure logger
@@ -48,7 +48,10 @@ def _create_model_config_ui(
     """
     with gr.Accordion("Model Configuration", open=True):
         model = gr.Textbox(value=default_model, label="Model")
-        device = gr.Textbox(value=DEFAULT_DEVICE, label="Device (e.g., 0, cpu, mps)")
+        device = gr.Textbox(
+            value=DEFAULT_DEVICE,
+            label="Device (use 0 for the first ROCm GPU, or cpu)",
+        )
         batch_size = gr.Slider(
             minimum=MIN_BATCH_SIZE,
             maximum=MAX_BATCH_SIZE,

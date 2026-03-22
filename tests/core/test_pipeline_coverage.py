@@ -280,15 +280,15 @@ def test_prepare_input_file_not_found() -> None:
     )
 
     # Temporarily disable SKIP_FS_CHECKS to test file not found error
-    from insanely_fast_whisper_rocm.utils import constants
+    from insanely_fast_whisper_rocm.utils import constant
 
-    original_skip = constants.SKIP_FS_CHECKS
+    original_skip = constant.SKIP_FS_CHECKS
     try:
-        constants.SKIP_FS_CHECKS = False
+        constant.SKIP_FS_CHECKS = False
         with pytest.raises(FileNotFoundError, match="Audio file not found"):
             pipeline._prepare_input(pathlib.Path("/nonexistent/file.wav"))
     finally:
-        constants.SKIP_FS_CHECKS = original_skip
+        constant.SKIP_FS_CHECKS = original_skip
 
 
 def test_execute_asr_timestamp_type_else_case(tmp_path: pathlib.Path) -> None:

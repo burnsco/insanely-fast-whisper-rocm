@@ -83,3 +83,28 @@ def test_rocm_bootstrap_links_helper_libraries(
     assert created == [str(destination)]
     assert destination.is_symlink()
     assert destination.resolve() == source.resolve()
+
+
+def test_rocm_bootstrap_removes_stale_helper_symlinks(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Remove stale helper-library symlinks before linking new libraries."""
+    module = importlib.import_module("insanely_fast_whisper_rocm.rocm_bootstrap")
+    torch_lib_dir = tmp_path / "torch-lib"
+    helper_root = tmp_path / ".local-rocm-libs"
+    stale_target = (
+        helper_root / "hipsparselt" / "opt" / "rocm" / "lib" / "libmissing.so"
+    )
+    stale_link = torch_lib_dir / "libmissing.so"
+    torch_lib_dir.mkdir(parents=True)
+    stale_link.symlink_to(stale_target)
+
+    monkeypatch.setattr(module, "_torch_library_dir", lambda: torch_lib_dir)
+    monkeypatch.setattr(module, "_helper_root", lambda: helper_root)
+    monkeypatch.setattr(module, "_candidate_helper_library_dirs", lambda: [])
+
+    created = module.link_local_rocm_shared_libraries()
+
+    assert created == []
+    assert stale_link.is_symlink() is False

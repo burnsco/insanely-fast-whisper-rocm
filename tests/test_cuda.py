@@ -6,15 +6,21 @@ significant delays in CI environments lacking a GPU.
 If CUDA is unavailable the test will be **skipped** rather than hanging.
 """
 
+from __future__ import annotations
+
 import sys
 
 import pytest
-import torch
 
 
 @pytest.mark.timeout(5)
 def test_cuda_available_or_skip() -> None:
     """Pass if CUDA is present, otherwise skip gracefully."""
+    try:
+        import torch
+    except (ImportError, OSError):
+        pytest.skip("Torch could not be imported in this test environment.")
+
     if not torch.cuda.is_available():
         pytest.skip("CUDA device not available on this runner")
     # Print diagnostic and ensure exit code 0

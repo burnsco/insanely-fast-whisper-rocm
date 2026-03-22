@@ -3,7 +3,7 @@
 
 This script copies the .env.example file to the user's configuration
 directory to help them get started with custom settings.
-It's designed to be run both directly and via PDM.
+It's designed to be run directly or via ``uv run``.
 """
 
 import shutil

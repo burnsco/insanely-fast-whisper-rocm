@@ -1,6 +1,7 @@
-"""Utilities for the Insanely Fast Whisper API."""
+"""Utilities for the Insanely Fast Whisper ROCm app."""
 
-from insanely_fast_whisper_rocm.utils.constants import (
+from insanely_fast_whisper_rocm.utils import constant
+from insanely_fast_whisper_rocm.utils.constant import (
     API_DESCRIPTION,
     API_HOST,
     API_PORT,
@@ -117,6 +118,7 @@ __all__ = [
     "UPLOAD_DIR",
     "USER_CONFIG_DIR",
     "USER_ENV_FILE",
+    "constant",
     # download_hf_model
     "download_model_if_needed",
     # file_utils

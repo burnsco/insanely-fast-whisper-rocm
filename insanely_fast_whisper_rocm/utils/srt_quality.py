@@ -19,7 +19,7 @@ from __future__ import annotations
 import statistics
 from typing import Any
 
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 
 def compute_srt_quality(

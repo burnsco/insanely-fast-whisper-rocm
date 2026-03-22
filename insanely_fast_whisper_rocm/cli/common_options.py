@@ -14,7 +14,7 @@ from pathlib import Path
 
 import click
 
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 # ---------------------------------------------------------------------------
 # Public decorator
@@ -42,14 +42,14 @@ def audio_options(func: Callable[..., None]) -> Callable[..., None]:
         click.option(
             "--model",
             "-m",
-            help="Model name to use (e.g., distil-whisper/distil-large-v3)",
+            help="Model name to use (e.g., distil-whisper/distil-large-v3.5)",
             show_default=True,
             default=constants.DEFAULT_MODEL,
         ),
         click.option(
             "--device",
             "-d",
-            help="Device for inference (cuda:0, cpu, mps)",
+            help="Device for inference ('0' for the first ROCm GPU, cpu, or mps)",
             show_default=True,
             default=constants.DEFAULT_DEVICE,
         ),

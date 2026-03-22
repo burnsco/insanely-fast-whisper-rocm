@@ -1,46 +1,54 @@
-# Use AMD's validated ROCm 7.2 PyTorch runtime for Python 3.10.
-FROM rocm/pytorch:rocm7.2_ubuntu22.04_py3.10_pytorch_release_2.9.1
+# syntax=docker/dockerfile:1
 
-LABEL org.opencontainers.image.source https://github.com/burnsco/insanely-fast-whisper-rocm
+FROM rocm/pytorch:rocm7.2_ubuntu22.04_py3.10_pytorch_release_2.9.1 AS base
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PIP_NO_CACHE_DIR=off
-ENV TZ=Europe/Amsterdam
-ENV ROCM_PATH=/opt/rocm
-ENV PATH="/app/.venv/bin:${PATH}"
+LABEL org.opencontainers.image.source=https://github.com/burnsco/insanely-fast-whisper-rocm
 
-# Install OS-level dependencies required by the media pipeline.
-RUN apt-get update -y && apt-get upgrade -y && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    ffmpeg \
-    libsndfile1 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=off \
+    ROCM_PATH=/opt/rocm \
+    TORCHAUDIO_USE_SOUNDFILE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:${PATH}"
+
+RUN apt-get update -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libsndfile1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the project metadata needed to install dependencies.
-COPY pyproject.toml /app/
-COPY uv.lock /app/
-COPY openapi.yaml /app/
+COPY pyproject.toml uv.lock openapi.yaml README.md /app/
 
-# Install only the application dependencies; torch/torchaudio come from the
-# validated ROCm base image.
-RUN uv sync --locked --no-dev --no-install-project
+FROM base AS runtime
 
-COPY ./insanely_fast_whisper_rocm /app/insanely_fast_whisper_rocm/
+RUN uv sync --locked --extra rocm --no-dev --no-install-project
 
-RUN uv sync --locked --no-dev --no-editable
+COPY insanely_fast_whisper_rocm /app/insanely_fast_whisper_rocm
 
-ENV GRADIO_SERVER_NAME="0.0.0.0"
-ENV TORCHAUDIO_USE_SOUNDFILE=1
+RUN uv sync --locked --extra rocm --no-dev --no-editable
 
-# Expose default internal ports (API/WebUI). Actual bindings are controlled by Compose.
-EXPOSE 8888
-EXPOSE 7860
+EXPOSE 8888 7860
 
-# Use the package entrypoint so host/port are controlled by env vars (API_HOST/API_PORT).
+CMD ["insanely-fast-whisper-rocm"]
+
+FROM base AS dev
+
+RUN uv sync --locked --extra rocm --group bench --group dev --no-install-project
+
+COPY insanely_fast_whisper_rocm /app/insanely_fast_whisper_rocm
+COPY tests /app/tests
+COPY scripts /app/scripts
+COPY .env.example /app/.env.example
+COPY docker-compose.yaml /app/docker-compose.yaml
+COPY docker-compose.dev.yaml /app/docker-compose.dev.yaml
+
+RUN uv sync --locked --extra rocm --group bench --group dev --no-editable
+
+EXPOSE 8888 7860
+
 CMD ["insanely-fast-whisper-rocm"]

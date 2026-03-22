@@ -11,8 +11,12 @@ def test_generate_report_includes_runtime_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Generate a report with stable test doubles for external probes."""
-    monkeypatch.setenv("ROCM_PATH", "/opt/rocm")
-    monkeypatch.setenv("PYTORCH_ALLOC_CONF", "max_split_size_mb:128")
+    monkeypatch.setattr(rocm_report.constant, "ROCM_PATH", "/opt/rocm")
+    monkeypatch.setattr(
+        rocm_report.constant,
+        "PYTORCH_ALLOC_CONF",
+        "max_split_size_mb:128",
+    )
 
     monkeypatch.setattr(
         rocm_report,

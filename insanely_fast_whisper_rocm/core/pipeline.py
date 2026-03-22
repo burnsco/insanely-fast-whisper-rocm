@@ -13,8 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, TypeVar, cast
 
-import torch
-
 from insanely_fast_whisper_rocm.audio import conversion as audio_conversion
 from insanely_fast_whisper_rocm.audio import processing as audio_processing
 from insanely_fast_whisper_rocm.audio import results as audio_results
@@ -23,12 +21,14 @@ from insanely_fast_whisper_rocm.core.cancellation import CancellationToken
 from insanely_fast_whisper_rocm.core.errors import TranscriptionError
 from insanely_fast_whisper_rocm.core.progress import NoOpProgress, ProgressCallback
 from insanely_fast_whisper_rocm.core.storage import BaseStorage, StorageFactory
-from insanely_fast_whisper_rocm.utils import constants, file_utils
+from insanely_fast_whisper_rocm.utils import constant as constants
+from insanely_fast_whisper_rocm.utils import file_utils
 from insanely_fast_whisper_rocm.utils.filename_generator import (
     FilenameGenerator,
     StandardFilenameStrategy,
     TaskType,
 )
+from insanely_fast_whisper_rocm.utils.torch_runtime import torch
 
 logger = logging.getLogger(__name__)
 

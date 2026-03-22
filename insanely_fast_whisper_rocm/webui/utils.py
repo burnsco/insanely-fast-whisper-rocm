@@ -4,18 +4,19 @@ This module contains utility functions for file handling, formatting,
 and device string conversion used by the WebUI components.
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
 
-import torch
-
 # Import from core.utils
 from insanely_fast_whisper_rocm.core.utils import (
     convert_device_string as core_convert_device_string,
 )
+from insanely_fast_whisper_rocm.utils.torch_runtime import torch
 
 # Configure logger
 logger = logging.getLogger("insanely_fast_whisper_rocm.webui.utils")
@@ -88,10 +89,11 @@ def generate_timestamped_filename(base_name: str, extension: str) -> str:
 
 
 def is_cuda_available() -> bool:
-    """Check if CUDA is available for PyTorch.
+    """Check whether PyTorch exposes a GPU backend.
 
     Returns:
-        True if CUDA is available, False otherwise
+        True if ``torch.cuda`` is available. On ROCm builds, PyTorch still
+        uses the ``cuda`` device namespace for HIP-backed GPUs.
     """
     return torch.cuda.is_available()
 

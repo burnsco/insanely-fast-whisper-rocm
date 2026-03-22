@@ -15,8 +15,8 @@ def test_ensure_local_hf_cache_env_sets_repo_local_cache(
     tmp_path: Path,
 ) -> None:
     """Configure a repo-local cache when no HF cache env vars are set."""
-    monkeypatch.delenv("HF_HOME", raising=False)
-    monkeypatch.delenv("HUGGINGFACE_HUB_CACHE", raising=False)
+    monkeypatch.setattr(hf_cache.constant, "HF_HOME", None)
+    monkeypatch.setattr(hf_cache.constant, "HUGGINGFACE_HUB_CACHE", None)
     monkeypatch.setattr(hf_cache, "PROJECT_ROOT", tmp_path)
 
     cache_root = hf_cache.ensure_local_hf_cache_env()
@@ -33,6 +33,12 @@ def test_ensure_local_hf_cache_env_preserves_existing_env(
     """Leave existing HF cache configuration untouched."""
     monkeypatch.setenv("HF_HOME", "/custom/hf-home")
     monkeypatch.setenv("HUGGINGFACE_HUB_CACHE", "/custom/hf-cache")
+    monkeypatch.setattr(hf_cache.constant, "HF_HOME", "/custom/hf-home")
+    monkeypatch.setattr(
+        hf_cache.constant,
+        "HUGGINGFACE_HUB_CACHE",
+        "/custom/hf-cache",
+    )
 
     cache_root = hf_cache.ensure_local_hf_cache_env()
 

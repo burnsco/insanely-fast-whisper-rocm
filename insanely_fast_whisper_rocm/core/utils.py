@@ -11,10 +11,12 @@ def convert_device_string(device_id: str) -> str:
 
     Args:
         device_id: A string representing the device. Can be:
-                 - A number (e.g., "0") -> converted to "cuda:0"
+                 - A number (for example, "0") -> converted to ``cuda:0``
+                   for PyTorch's ROCm/HIP backend
                  - "mps" -> returned as-is for Apple Silicon
                  - "cpu" -> returned as-is for CPU
-                 - Already formatted string (e.g., "cuda:1") -> returned as-is
+                 - Already formatted string (for example, "cuda:1")
+                   -> returned as-is
 
     Returns:
         str: A PyTorch-compatible device string

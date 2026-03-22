@@ -1,7 +1,8 @@
 """Download a Hugging Face model if it's not already cached or if forced."""
 
+from __future__ import annotations
+
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -18,7 +19,7 @@ except ImportError:
     )
     sys.exit(1)
 
-from insanely_fast_whisper_rocm.utils.constants import DEFAULT_MODEL, HF_TOKEN
+from insanely_fast_whisper_rocm.utils import constant
 
 # Configure basic logging
 logging.basicConfig(
@@ -27,13 +28,6 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)  # Use __name__ for module-specific logger
-
-# Environment variable names
-ENV_VAR_MODEL_NAME = "WHISPER_MODEL"
-ENV_VAR_HF_TOKEN = "HF_TOKEN"
-
-# Note: DEFAULT_MODEL and HF_TOKEN are imported from constants.py for
-# centralized configuration
 
 
 def _resolve_effective_cache_dir(cache_dir: str | Path | None) -> str | Path | None:
@@ -48,13 +42,11 @@ def _resolve_effective_cache_dir(cache_dir: str | Path | None) -> str | Path | N
     if cache_dir is not None:
         return cache_dir
 
-    hub_cache = os.getenv("HUGGINGFACE_HUB_CACHE")
-    if hub_cache:
-        return hub_cache
+    if constant.HUGGINGFACE_HUB_CACHE:
+        return constant.HUGGINGFACE_HUB_CACHE
 
-    hf_home = os.getenv("HF_HOME")
-    if hf_home:
-        return Path(hf_home) / "hub"
+    if constant.HF_HOME:
+        return Path(constant.HF_HOME) / "hub"
 
     return None
 
@@ -73,14 +65,13 @@ def download_model_if_needed(
 ) -> str:
     """Downloads a Hugging Face model if it's not already cached or if forced.
 
-    Respects Hugging Face's default cache locations and environment variables
-    (HF_HOME, TRANSFORMERS_CACHE, HUGGINGFACE_HUB_CACHE) if cache_dir is None.
+    Respects the app's centralized Hugging Face cache settings when
+    ``cache_dir`` is not provided.
 
     Args:
         model_name (str | None): The name of the model on Hugging Face Hub
                                  (e.g., "openai/whisper-large-v3").
-                                 If None, attempts to use WHISPER_MODEL env var,
-                                 then DEFAULT_MODEL.
+                                 If None, uses the app's default model.
         force (bool): If True, re-downloads the model even if it exists in the
                       cache.
         hf_token (str | None): Hugging Face API token. If None, the
@@ -117,21 +108,13 @@ def download_model_if_needed(
     effective_model_name = model_name
 
     if not effective_model_name:
-        log.info("No model name provided, using centralized default from constants.py")
-        effective_model_name = DEFAULT_MODEL
+        log.info("No model name provided, using the centralized default model")
+        effective_model_name = constant.DEFAULT_MODEL
 
-        # Resolve authentication token *lazily* to avoid leaking credentials in
-    # contexts (e.g. CI) where the surrounding environment deliberately
-    # unsets them.  Only look at environment variables at call-time and never
-    # fall back to the module-level HF_TOKEN constant which may have been
-    # initialised before the env was sanitized by a test-runner.
-    # Respect explicit hf_token argument; otherwise *do not* pull from environment
-    # so tests can verify that we don't leak credentials via function parameters.
+    # Respect the explicit ``hf_token`` argument when present. Otherwise we pass
+    # ``None`` through so ``huggingface_hub`` can resolve credentials itself.
     if hf_token is not None:
         log.debug("Using Hugging Face token provided as argument.")
-    # If hf_token is None we simply pass it through; snapshot_download will
-    # internally read relevant environment variables if required.  This prevents
-    # the token value from being exposed in call arguments during tests/CI.
 
     action = "Checking for" if local_files_only else "Downloading"
     log.info("%s model: '%s'", action, effective_model_name)
@@ -196,9 +179,9 @@ def download_model_if_needed(
     "-m",
     "--model",
     "model_name_option",
-    default=DEFAULT_MODEL,
-    show_default=f"centralized default: '{DEFAULT_MODEL}'",
-    help="Name of the Hugging Face model (e.g., 'openai/whisper-large-v3').",
+    default=constant.DEFAULT_MODEL,
+    show_default=f"centralized default: '{constant.DEFAULT_MODEL}'",
+    help="Name of the Hugging Face model (for example, 'openai/whisper-large-v3').",
 )
 @click.option(
     "--force",
@@ -207,11 +190,11 @@ def download_model_if_needed(
 )
 @click.option(
     "--hf_token",
-    default=HF_TOKEN,
+    default=constant.HF_TOKEN,
     show_default="centralized configuration",
     help=(
         "Hugging Face API token. If not provided, uses centralized "
-        "configuration from constants.py."
+        "configuration from the app settings module."
     ),
 )
 @click.option(
@@ -301,7 +284,7 @@ def main(
         logger.error(
             "No model specified. Provide one via --model argument or %s "
             "environment variable.",
-            ENV_VAR_MODEL_NAME,
+            "WHISPER_MODEL",
         )
         # click.echo(click.get_current_context().get_help(), err=True)
         # Alternative to parser.print_help

@@ -12,7 +12,7 @@ import click
 from transformers import logging as transformers_logging
 
 from insanely_fast_whisper_rocm.cli.commands import transcribe, translate
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 # Configure logging
 logging.basicConfig(

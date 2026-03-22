@@ -7,7 +7,7 @@ application created by the `create_app` factory.
 
 import uvicorn
 
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 if __name__ == "__main__":
     uvicorn.run(
@@ -15,5 +15,5 @@ if __name__ == "__main__":
         factory=True,
         host=constants.API_HOST,
         port=constants.API_PORT,
-        reload=True,
+        reload=False,
     )

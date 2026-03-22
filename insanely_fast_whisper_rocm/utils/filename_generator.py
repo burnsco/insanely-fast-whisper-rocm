@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from insanely_fast_whisper_rocm.utils.constants import APP_TIMEZONE
+from insanely_fast_whisper_rocm.utils.constant import APP_TIMEZONE
 
 
 class TaskType(Enum):

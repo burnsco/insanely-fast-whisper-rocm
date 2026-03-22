@@ -6,9 +6,10 @@ thread safety, and resource cleanup to prevent GPU memory leaks.
 
 from __future__ import annotations
 
-import os
 import threading
 from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from insanely_fast_whisper_rocm.core import backend_cache
 from insanely_fast_whisper_rocm.core.asr_backend import HuggingFaceBackendConfig
@@ -121,7 +122,10 @@ class TestBackendCache:
                 # Ref count should be 0 (but entry should still exist in warm cache mode)
                 assert backend_cache._CACHE[key1].ref_count == 0
 
-    def test_eager_release_mode_closes_backend(self) -> None:
+    def test_eager_release_mode_closes_backend(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Verify that IFW_EAGER_MODEL_RELEASE=1 closes backend when ref_count hits 0."""
         cfg = HuggingFaceBackendConfig(
             model_name="openai/whisper-tiny",
@@ -132,45 +136,26 @@ class TestBackendCache:
             progress_group_size=5,
         )
 
-        # Enable eager release mode
-        with patch.dict(os.environ, {"IFW_EAGER_MODEL_RELEASE": "1"}):
-            # Re-import to pick up the environment variable
-            import importlib
+        monkeypatch.setattr(backend_cache, "_EAGER_RELEASE", True, raising=True)
 
-            from insanely_fast_whisper_rocm import core
+        with patch(
+            "insanely_fast_whisper_rocm.core.backend_cache.HuggingFaceBackend"
+        ) as mock_backend_class:
+            with patch("insanely_fast_whisper_rocm.core.backend_cache.WhisperPipeline"):
+                mock_backend = MagicMock()
+                mock_backend.close = Mock()
+                mock_backend_class.return_value = mock_backend
 
-            importlib.reload(core.backend_cache)
-            from insanely_fast_whisper_rocm.core.backend_cache import (
-                acquire_pipeline as acquire_eager,
-            )
-            from insanely_fast_whisper_rocm.core.backend_cache import (
-                release_pipeline as release_eager,
-            )
+                pipeline, key = acquire_pipeline(cfg)
+                release_pipeline(key)
 
-            with patch(
-                "insanely_fast_whisper_rocm.core.backend_cache.HuggingFaceBackend"
-            ) as mock_backend_class:
-                with patch(
-                    "insanely_fast_whisper_rocm.core.backend_cache.WhisperPipeline"
-                ):
-                    mock_backend = MagicMock()
-                    mock_backend.close = Mock()
-                    mock_backend_class.return_value = mock_backend
+                mock_backend.close.assert_called_once()
+                assert key not in backend_cache._CACHE
 
-                    # Acquire and release
-                    pipeline, key = acquire_eager(cfg)
-                    release_eager(key)
-
-                    # Backend should have been closed
-                    mock_backend.close.assert_called_once()
-
-                    # Entry should be removed from cache
-                    assert key not in backend_cache._CACHE
-
-            # Reload back to normal mode
-            importlib.reload(core.backend_cache)
-
-    def test_warm_cache_mode_keeps_backend(self) -> None:
+    def test_warm_cache_mode_keeps_backend(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Verify that default warm cache behavior keeps backend alive at ref_count=0."""
         cfg = HuggingFaceBackendConfig(
             model_name="openai/whisper-tiny",
@@ -181,44 +166,22 @@ class TestBackendCache:
             progress_group_size=5,
         )
 
-        # Ensure eager release is off for this test
-        with patch.dict(os.environ, {"IFW_EAGER_MODEL_RELEASE": "0"}):
-            # Re-import to pick up the environment variable
-            import importlib
+        monkeypatch.setattr(backend_cache, "_EAGER_RELEASE", False, raising=True)
 
-            from insanely_fast_whisper_rocm import core
+        with patch(
+            "insanely_fast_whisper_rocm.core.backend_cache.HuggingFaceBackend"
+        ) as mock_backend_class:
+            with patch("insanely_fast_whisper_rocm.core.backend_cache.WhisperPipeline"):
+                mock_backend = MagicMock()
+                mock_backend.close = Mock()
+                mock_backend_class.return_value = mock_backend
 
-            importlib.reload(core.backend_cache)
-            from insanely_fast_whisper_rocm.core.backend_cache import (
-                acquire_pipeline as acquire_warm,
-            )
-            from insanely_fast_whisper_rocm.core.backend_cache import (
-                release_pipeline as release_warm,
-            )
+                pipeline, key = acquire_pipeline(cfg)
+                release_pipeline(key)
 
-            with patch(
-                "insanely_fast_whisper_rocm.core.backend_cache.HuggingFaceBackend"
-            ) as mock_backend_class:
-                with patch(
-                    "insanely_fast_whisper_rocm.core.backend_cache.WhisperPipeline"
-                ):
-                    mock_backend = MagicMock()
-                    mock_backend.close = Mock()
-                    mock_backend_class.return_value = mock_backend
-
-                    # Acquire and release
-                    pipeline, key = acquire_warm(cfg)
-                    release_warm(key)
-
-                    # Backend should NOT have been closed (warm cache mode)
-                    mock_backend.close.assert_not_called()
-
-                    # Entry should still exist in cache
-                    assert key in backend_cache._CACHE
-                    assert backend_cache._CACHE[key].ref_count == 0
-
-            # Reload back to normal
-            importlib.reload(core.backend_cache)
+                mock_backend.close.assert_not_called()
+                assert key in backend_cache._CACHE
+                assert backend_cache._CACHE[key].ref_count == 0
 
     def test_borrow_pipeline_context_manager(self) -> None:
         """Verify that borrow_pipeline context manager properly acquires and releases."""

@@ -11,7 +11,6 @@ import types
 from unittest.mock import MagicMock, patch
 
 import pytest
-import torch
 
 from insanely_fast_whisper_rocm.core.asr_backend import (
     HuggingFaceBackend,
@@ -21,6 +20,7 @@ from insanely_fast_whisper_rocm.core.errors import (
     DeviceNotFoundError,
     TranscriptionError,
 )
+from insanely_fast_whisper_rocm.utils.torch_runtime import torch
 
 
 def test_cuda_device_not_available__raises_device_not_found_error(
@@ -43,7 +43,7 @@ def test_cuda_device_not_available__raises_device_not_found_error(
     ):
         with pytest.raises(
             DeviceNotFoundError,
-            match="CUDA device cuda:0 requested but CUDA is not available",
+            match="PyTorch GPU device cuda:0 requested but the ROCm runtime is not available",
         ):
             HuggingFaceBackend(config)
 

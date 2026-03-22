@@ -245,7 +245,7 @@ class TestFilenameGenerator:
         assert "20231225T" in filename
 
     @patch(
-        "insanely_fast_whisper_rocm.utils.constants.os.getenv"
+        "insanely_fast_whisper_rocm.utils.constant.os.getenv"
     )  # Patch constants loading
     @patch(
         "insanely_fast_whisper_rocm.utils.filename_generator.datetime"

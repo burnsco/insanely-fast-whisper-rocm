@@ -35,7 +35,7 @@ from insanely_fast_whisper_rocm.core.formatters import (
     build_quality_segments,
 )
 from insanely_fast_whisper_rocm.core.progress import ProgressCallback
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 from insanely_fast_whisper_rocm.utils.file_utils import cleanup_temp_files
 from insanely_fast_whisper_rocm.utils.filename_generator import (
     FilenameGenerator,
@@ -457,7 +457,9 @@ def _run_task(*, task: str, audio_file: Path, **kwargs: Any) -> None:  # noqa: A
         reporter.on_error(str(exc))
         click.secho(f"\n❌ Device error: {exc}", fg="red", err=True)
         click.secho(
-            "💡 Try --device cpu or verify your CUDA/MPS setup", fg="yellow", err=True
+            "💡 Try --device cpu or verify your ROCm/PyTorch GPU runtime",
+            fg="yellow",
+            err=True,
         )
         if debug:
             logger.exception("Device error details")

@@ -11,7 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 from insanely_fast_whisper_rocm.utils.timestamp_utils import (
     normalize_timestamp_format,
     validate_timestamps,

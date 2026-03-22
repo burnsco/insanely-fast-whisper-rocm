@@ -6,7 +6,7 @@ import dataclasses
 import logging
 from collections.abc import Iterator
 
-from insanely_fast_whisper_rocm.utils import constants
+from insanely_fast_whisper_rocm.utils import constant as constants
 
 logger = logging.getLogger(__name__)
 

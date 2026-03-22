@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from insanely_fast_whisper_rocm.utils.constants import APP_TIMEZONE
+from insanely_fast_whisper_rocm.utils.constant import APP_TIMEZONE
 
 logger = logging.getLogger(__name__)
 

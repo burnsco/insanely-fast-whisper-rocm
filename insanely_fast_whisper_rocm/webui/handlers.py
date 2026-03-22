@@ -12,10 +12,9 @@ import logging
 import threading
 import time
 import zipfile
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import gradio as gr
 
@@ -30,29 +29,17 @@ from insanely_fast_whisper_rocm.core.errors import (
 from insanely_fast_whisper_rocm.core.formatters import FORMATTERS
 from insanely_fast_whisper_rocm.core.integrations.stable_ts import stabilize_timestamps
 from insanely_fast_whisper_rocm.core.orchestrator import create_orchestrator
-from insanely_fast_whisper_rocm.core.progress import ProgressCallback
-from insanely_fast_whisper_rocm.utils import (
-    DEFAULT_ADJUST_GAPS,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_DEMUCS,
-    DEFAULT_DEVICE,
-    DEFAULT_GAP_PADDING,
-    DEFAULT_LANGUAGE,
-    DEFAULT_MODEL,
-    DEFAULT_NONSPEECH_SKIP,
-    DEFAULT_STABILIZE,
-    DEFAULT_SUPPRESS_TS_TOKENS,
-    DEFAULT_TIMESTAMP_TYPE,
-    DEFAULT_TRANSCRIPTS_DIR,
-    DEFAULT_VAD,
-    DEFAULT_VAD_THRESHOLD,
-    constants,
+from insanely_fast_whisper_rocm.utils import constant as constants
+from insanely_fast_whisper_rocm.utils.filename_generator import TaskType
+from insanely_fast_whisper_rocm.webui.downloads import (
+    build_ui_json_summary,
+    prepare_temp_downloadable_file,
 )
-from insanely_fast_whisper_rocm.utils.filename_generator import (
-    FilenameGenerator,
-    StandardFilenameStrategy,
-    TaskType,
+from insanely_fast_whisper_rocm.webui.models import (
+    FileHandlingConfig,
+    TranscriptionConfig,
 )
+from insanely_fast_whisper_rocm.webui.progress import WebUIProgressCallback
 from insanely_fast_whisper_rocm.webui.zip_creator import (
     BatchZipBuilder,
     ZipConfiguration,
@@ -64,103 +51,9 @@ logger = logging.getLogger("insanely_fast_whisper_rocm.webui.handlers")
 # Ensure default transcripts dir exists for WebUI direct saves (if any outside pipeline)
 Path(constants.DEFAULT_TRANSCRIPTS_DIR).mkdir(parents=True, exist_ok=True)
 
-# Global instance of FilenameGenerator with standard strategy for WebUI
-# This can be configured or made more flexible if needed later.
-STANDARD_FILENAME_STRATEGY = StandardFilenameStrategy()
-WEBUI_FILENAME_GENERATOR = FilenameGenerator(strategy=STANDARD_FILENAME_STRATEGY)
-
-
-@dataclass
-class TranscriptionConfig:  # pylint: disable=too-many-instance-attributes
-    """Configuration for the transcription process."""
-
-    model: str = DEFAULT_MODEL
-    device: str = DEFAULT_DEVICE
-    batch_size: int = DEFAULT_BATCH_SIZE
-    timestamp_type: Literal["chunk", "word"] = DEFAULT_TIMESTAMP_TYPE
-    language: str = DEFAULT_LANGUAGE
-    task: Literal["transcribe", "translate"] = "transcribe"
-    dtype: str = "float16"
-    chunk_length: int = 30
-    chunk_duration: float | None = None
-    chunk_overlap: float | None = None
-    # Stabilization options
-    stabilize: bool = DEFAULT_STABILIZE
-    demucs: bool = DEFAULT_DEMUCS
-    vad: bool = DEFAULT_VAD
-    vad_threshold: float = DEFAULT_VAD_THRESHOLD
-    suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS
-    gap_padding: str = DEFAULT_GAP_PADDING
-    adjust_gaps: bool = DEFAULT_ADJUST_GAPS
-    nonspeech_skip: float | None = DEFAULT_NONSPEECH_SKIP
-
-
-@dataclass
-class FileHandlingConfig:
-    """Configuration for file handling."""
-
-    save_transcriptions: bool = True
-    temp_uploads_dir: str = DEFAULT_TRANSCRIPTS_DIR
-
-
-def _prepare_temp_downloadable_file(
-    raw_data: dict[str, Any],
-    format_type: str,  # "txt" or "srt"
-    original_audio_stem: str,
-    temp_dir: Path,
-    task: TaskType,
-) -> str:
-    """Generate and persist a temporary downloadable file for the WebUI.
-
-    Generates content for TXT or SRT, saves it to a temporary file, and
-    returns the file path.
-
-    Args:
-        raw_data: The raw transcription result data.
-        format_type: Target output format, e.g. "txt" or "srt".
-        original_audio_stem: Stem of the original audio file name.
-        temp_dir: Directory to write the temporary file to.
-        task: The task used for filename generation.
-
-    Returns:
-        str: Absolute path to the generated temporary file.
-
-    Raises:
-        ValueError: If a formatter for the given format is not available.
-        OSError: If writing the temporary file fails.
-    """
-    formatter = FORMATTERS.get(format_type)
-    if not formatter:
-        raise ValueError(f"No formatter available for type: {format_type}")
-
-    content = formatter.format(raw_data)
-
-    # Use the global WEBUI_FILENAME_GENERATOR for consistent naming
-    # Filename will be like: audio_stem_task_timestamp.format
-    # We need a unique name, timestamp is good.
-    # The generator itself handles the timestamp.
-    # Generator expects a path-like string for stem extraction
-    filename = WEBUI_FILENAME_GENERATOR.create_filename(
-        audio_path=original_audio_stem,
-        task=task,
-        extension=format_type,
-    )
-
-    temp_file_path = (
-        temp_dir / f"temp_dl_{filename}"
-    )  # Prefix to avoid clashes if needed
-    temp_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with open(temp_file_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        logger.info("Created temporary download file: %s", temp_file_path)
-        return str(temp_file_path)
-    except OSError as e:
-        logger.error(
-            "Failed to create temporary download file %s: %s", temp_file_path, e
-        )
-        raise
+# Backward-compatible aliases retained for existing tests and imports.
+_prepare_temp_downloadable_file = prepare_temp_downloadable_file
+_build_ui_json_summary = build_ui_json_summary
 
 
 def _is_stabilization_corrupt(segments: list[dict]) -> bool:
@@ -180,51 +73,6 @@ def _is_stabilization_corrupt(segments: list[dict]) -> bool:
     )
 
     return (identical_count / len(segments)) > 0.5
-
-
-def _build_ui_json_summary(
-    raw_result: dict[str, Any],
-    *,
-    json_file_path: str | None,
-    max_text_preview_chars: int = 2_000,
-) -> dict[str, Any]:
-    """Build a small JSON-safe summary for display in the WebUI.
-
-    The full transcription payload (especially ``chunks`` / ``segments``) can be
-    large enough to freeze the Gradio frontend when rendered via ``gr.JSON``.
-    This helper returns a compact summary suitable for UI display while keeping
-    full fidelity data accessible via download.
-
-    Args:
-        raw_result: Raw transcription result from the pipeline.
-        json_file_path: Path to the saved JSON file on disk.
-        max_text_preview_chars: Max number of characters to include in
-            ``text_preview``.
-
-    Returns:
-        A compact dict for UI display.
-    """
-    text = raw_result.get("text")
-    chunks = raw_result.get("chunks")
-    segments = raw_result.get("segments")
-
-    text_preview: str | None
-    if isinstance(text, str):
-        text_preview = text[:max_text_preview_chars]
-    else:
-        text_preview = None
-
-    return {
-        "output_file_path": json_file_path,
-        "text_len": len(text) if isinstance(text, str) else None,
-        "text_preview": text_preview,
-        "chunks": len(chunks) if isinstance(chunks, list) else None,
-        "segments": len(segments) if isinstance(segments, list) else None,
-        "task_type": raw_result.get("task_type"),
-        "runtime_seconds": raw_result.get("runtime_seconds"),
-        "pipeline_runtime_seconds": raw_result.get("pipeline_runtime_seconds"),
-        "processed_at": raw_result.get("processed_at"),
-    }
 
 
 def transcribe(
@@ -331,178 +179,12 @@ def transcribe(
             if "falling back to cpu" in message.lower():
                 logger.info("CPU fallback decision made by orchestrator")
 
-        class WebUIProgressCallback(ProgressCallback):
-            """Progress callback implementation for Gradio WebUI updates.
-
-            This callback translates pipeline progress events into Gradio
-            progress tracker updates for real-time UI feedback.
-            """
-
-            def __init__(
-                self,
-                tracker: gr.Progress,
-                base: float,
-                total: int,
-                idx: int,
-                name: str,
-                cancel_token: CancellationToken,
-            ) -> None:
-                """Initialize the WebUI progress callback.
-
-                Args:
-                    tracker: Gradio progress tracker instance.
-                    base: Base progress value for this file in the batch.
-                    total: Total number of files being processed.
-                    idx: Index of the current file being processed.
-                    name: Name of the file being processed.
-                    cancel_token: Cancellation token for cooperative cancellation.
-                """
-                self.tracker = tracker
-                self.base = base
-                self.total = total
-                self.idx = idx
-                self.name = name
-                self.cancel_token = cancel_token
-                self._total_chunks: int | None = None
-
-            def _update(self, fraction: float | None, message: str) -> None:
-                """Update the Gradio progress tracker.
-
-                Args:
-                    fraction: Optional progress fraction (0.0-1.0).
-                    message: Progress message to display.
-                """
-                if self.cancel_token.cancelled:
-                    return
-                if getattr(self.tracker, "cancelled", False):
-                    self.cancel_token.cancel()
-                    return
-
-                desc = f"{message} ({self.name})"
-                if fraction is not None:
-                    overall = self.base + (fraction / self.total)
-                    self.tracker(overall, desc=desc)
-                else:
-                    self.tracker(None, desc=desc)
-
-            def on_model_load_started(self) -> None:
-                """Handle model load start event."""
-                self._update(None, "Loading model...")
-
-            def on_model_load_finished(self) -> None:
-                """Handle model load complete event."""
-                self._update(None, "Model loaded")
-
-            def on_audio_loading_started(self, path: str) -> None:  # noqa: ARG002
-                """Handle audio loading start event.
-
-                Args:
-                    path: Path to the audio file being loaded.
-                """
-                self._update(None, "Preparing audio...")
-
-            def on_audio_loading_finished(self, duration_sec: float | None) -> None:  # noqa: ARG002
-                """Handle audio loading complete event.
-
-                Args:
-                    duration_sec: Duration of the loaded audio in seconds.
-                """
-                self._update(None, "Audio ready")
-
-            def on_chunking_started(self, total_chunks: int | None) -> None:
-                """Handle audio chunking start event.
-
-                Args:
-                    total_chunks: Total number of audio chunks to process.
-                """
-                self._total_chunks = total_chunks
-                self._update(0.0, "Starting transcription...")
-
-            def on_chunk_done(self, index: int) -> None:
-                """Handle chunk processing complete event.
-
-                Args:
-                    index: Index of the completed chunk.
-                """
-                if not self._total_chunks:
-                    self._update(None, "Transcribing...")
-                    return
-
-                chunk_num = index + 1
-                fraction = min(chunk_num / self._total_chunks, 1.0)
-                self._update(
-                    fraction,
-                    f"Processing chunk {chunk_num}/{self._total_chunks}",
-                )
-
-            def on_inference_started(self, total_batches: int | None) -> None:  # noqa: ARG002
-                """Handle inference start event.
-
-                Args:
-                    total_batches: Total number of inference batches.
-                """
-                return
-
-            def on_inference_batch_done(self, index: int) -> None:  # noqa: ARG002
-                """Handle inference batch complete event.
-
-                Args:
-                    index: Index of the completed batch.
-                """
-                return
-
-            def on_postprocess_started(self, name: str) -> None:
-                """Handle post-processing start event.
-
-                Args:
-                    name: Name of the post-processing step.
-                """
-                self._update(None, f"Post-processing: {name}")
-
-            def on_postprocess_finished(self, name: str) -> None:
-                """Handle post-processing complete event.
-
-                Args:
-                    name: Name of the completed post-processing step.
-                """
-                self._update(None, f"Post-processing done: {name}")
-
-            def on_export_started(self, total_items: int) -> None:
-                """Handle export start event.
-
-                Args:
-                    total_items: Total number of items to export.
-                """
-                self._update(None, f"Exporting {total_items} file(s)...")
-
-            def on_export_item_done(self, index: int, label: str) -> None:
-                """Handle export item complete event.
-
-                Args:
-                    index: Index of the completed export item.
-                    label: Label of the exported item.
-                """
-                self._update(None, f"Exported: {label} ({index + 1})")
-
-            def on_completed(self) -> None:
-                """Handle transcription complete event."""
-                self._update(1.0, "Transcription complete")
-
-            def on_error(self, message: str) -> None:
-                """Handle error event.
-
-                Args:
-                    message: Error message to display.
-                """
-                self._update(None, f"Error: {message}")
-
         webui_cb = None
         if progress_tracker_instance is not None:
             webui_cb = WebUIProgressCallback(
                 tracker=progress_tracker_instance,
                 base=base_progress,
                 total=total_files_for_session,
-                idx=current_file_idx,
                 name=original_file_name_for_desc,
                 cancel_token=cancellation_token,
             )
@@ -776,10 +458,9 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                 # Fallback: generate filename for JSON if pipeline didn't provide path
                 # This JSON is for our records/data, not necessarily for direct download
                 # button if pipeline failed to save
-                fallback_json_filename = WEBUI_FILENAME_GENERATOR.create_filename(
-                    audio_path=str(audio_file_path),
-                    task=current_task_type,
-                    extension="json",
+                fallback_json_filename = (
+                    f"{audio_file_path.stem}_{current_task_type.value}_"
+                    f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
                 )
                 json_file_path_from_pipeline = str(
                     output_base_dir / fallback_json_filename
