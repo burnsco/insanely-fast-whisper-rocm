@@ -75,6 +75,7 @@ uploads/
 data/
 !tests/data/
 !tests/data/sample.mp4
+test_media/
 
 # Test directory
 tests/*.mp3
