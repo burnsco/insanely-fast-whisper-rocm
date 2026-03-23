@@ -364,10 +364,13 @@ def test_process_transcription_request_single_file() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
         audio_path = Path(temp_dir) / "test.wav"
         audio_path.write_text("fake audio")
+        json_path = Path(temp_dir) / "test.json"
+        json_path.write_text("{}", encoding="utf-8")
 
         mock_result = {
             "text": "Test transcription",
-            "output_file_path": str(Path(temp_dir) / "test.json"),
+            "output_file_path": str(json_path),
+            "segments": [{"start": 0.0, "end": 1.0, "text": "Test transcription"}],
         }
 
         with unittest.mock.patch(
@@ -387,7 +390,10 @@ def test_process_transcription_request_single_file() -> None:
             assert len(result) == 7
             # First element is transcription output text
             assert isinstance(result[0], str)
-            assert "Test transcription" in result[0]
+            assert "Finished processing: test.wav" in result[0]
+            assert "Preview:" in result[0]
+            assert result[2]["visible"] is True
+            assert str(json_path) in result[2]["value"]
 
 
 def test_process_transcription_request_multiple_files() -> None:

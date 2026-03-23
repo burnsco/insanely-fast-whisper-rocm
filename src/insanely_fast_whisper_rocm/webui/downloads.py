@@ -104,3 +104,40 @@ def build_ui_json_summary(
         "pipeline_runtime_seconds": raw_result.get("pipeline_runtime_seconds"),
         "processed_at": raw_result.get("processed_at"),
     }
+
+
+def build_ui_text_summary(
+    raw_result: dict[str, Any],
+    *,
+    source_name: str,
+    max_text_preview_chars: int = 800,
+) -> str:
+    """Build a compact text summary for the main WebUI output box.
+
+    Args:
+        raw_result: Raw transcription result.
+        source_name: Original uploaded filename to show in the summary.
+        max_text_preview_chars: Maximum preview length for transcript text.
+
+    Returns:
+        A short human-readable completion summary.
+    """
+    text = raw_result.get("text")
+    segments = raw_result.get("segments")
+    chunks = raw_result.get("chunks")
+    preview = text.strip() if isinstance(text, str) else ""
+    if len(preview) > max_text_preview_chars:
+        preview = preview[:max_text_preview_chars].rstrip() + "..."
+
+    summary_lines = [
+        f"Finished processing: {source_name}",
+        "Full transcript is available from Download TXT / Download JSON.",
+    ]
+    if isinstance(segments, list):
+        summary_lines.append(f"Subtitle segments: {len(segments)}")
+    if isinstance(chunks, list):
+        summary_lines.append(f"Model chunks: {len(chunks)}")
+    if preview:
+        summary_lines.extend(["", "Preview:", preview])
+
+    return "\n".join(summary_lines)

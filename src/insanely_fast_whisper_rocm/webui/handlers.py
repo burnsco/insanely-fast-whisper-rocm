@@ -34,6 +34,7 @@ from insanely_fast_whisper_rocm.utils import constant as constants
 from insanely_fast_whisper_rocm.utils.filename_generator import TaskType
 from insanely_fast_whisper_rocm.webui.downloads import (
     build_ui_json_summary,
+    build_ui_text_summary,
     prepare_temp_downloadable_file,
 )
 from insanely_fast_whisper_rocm.webui.models import (
@@ -55,6 +56,38 @@ Path(constants.DEFAULT_TRANSCRIPTS_DIR).mkdir(parents=True, exist_ok=True)
 # Backward-compatible aliases retained for existing tests and imports.
 _prepare_temp_downloadable_file = prepare_temp_downloadable_file
 _build_ui_json_summary = build_ui_json_summary
+_build_ui_text_summary = build_ui_text_summary
+
+
+def _add_generated_file(
+    generated_files: list[str],
+    artifact_path: str | None,
+) -> None:
+    """Append an existing artifact path exactly once.
+
+    Args:
+        generated_files: Accumulated generated file paths.
+        artifact_path: Candidate path to add.
+    """
+    if not artifact_path:
+        return
+    candidate = Path(artifact_path)
+    if candidate.exists():
+        resolved_candidate = str(candidate.resolve())
+        if resolved_candidate not in generated_files:
+            generated_files.append(resolved_candidate)
+
+
+def _build_generated_files_text(generated_files: list[str]) -> str:
+    """Build a compact multiline artifact summary for the WebUI.
+
+    Args:
+        generated_files: Existing generated file paths.
+
+    Returns:
+        Human-readable multiline text with one absolute path per line.
+    """
+    return "\n".join(generated_files)
 
 
 def _is_stabilization_corrupt(segments: list[dict]) -> bool:
@@ -430,10 +463,12 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
     """
     all_results_data = []
     processed_files_summary = []
+    generated_files: list[str] = []
 
     # Initialize default Gradio button updates (hidden) early so error paths can
     # safely reference them.
     dl_btn_hidden_update = gr.update(visible=False, value=None, interactive=False)
+    generated_files_hidden_update = gr.update(value="", visible=False)
 
     # output_base_dir is where pipeline saves JSON and where our ZIPs will go.
     output_base_dir = Path(file_handling_config.temp_uploads_dir)
@@ -543,7 +578,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
             return (
                 transcription_output_val,
                 json_output_val,
-                raw_result_state_val,
+                generated_files_hidden_update,
                 dl_btn_hidden_update,
                 dl_btn_hidden_update,
                 dl_btn_hidden_update,
@@ -593,7 +628,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
             return (
                 transcription_output_val,
                 json_output_val,
-                raw_result_state_val,
+                generated_files_hidden_update,
                 dl_btn_hidden_update,  # zip_btn_update
                 dl_btn_hidden_update,  # txt_btn_update
                 dl_btn_hidden_update,  # srt_btn_update
@@ -604,7 +639,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
         return (
             "No files processed.",
             {},
-            {},
+            generated_files_hidden_update,
             dl_btn_hidden_update,  # zip_btn_update
             dl_btn_hidden_update,  # txt_btn_update
             dl_btn_hidden_update,  # srt_btn_update
@@ -631,7 +666,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
         return (
             transcription_output_val,
             json_output_val,
-            raw_result_state_val,
+            generated_files_hidden_update,
             dl_btn_hidden_update,
             dl_btn_hidden_update,
             dl_btn_hidden_update,
@@ -643,12 +678,9 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
 
     if num_files == 1:
         first_success = successful_results[0]
-        # Use FORMATTERS for display text
-        display_txt_formatter = FORMATTERS.get("txt")
-        transcription_output_val = (
-            display_txt_formatter.format(first_success["raw_result"])
-            if display_txt_formatter
-            else "Could not format text output."
+        transcription_output_val = _build_ui_text_summary(
+            first_success["raw_result"],
+            source_name=Path(first_success["audio_original_path"]).name,
         )
         json_output_val = _build_ui_json_summary(
             first_success["raw_result"],
@@ -658,14 +690,16 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
 
         # Individual file downloads - wrap each in try/except to prevent hangs
         try:
+            txt_download_path = _prepare_temp_downloadable_file(
+                first_success["raw_result"],
+                "txt",
+                first_success["audio_original_stem"],
+                output_base_dir,
+                current_task_type,
+            )
+            _add_generated_file(generated_files, txt_download_path)
             txt_btn_update = gr.update(
-                value=_prepare_temp_downloadable_file(
-                    first_success["raw_result"],
-                    "txt",
-                    first_success["audio_original_stem"],
-                    output_base_dir,
-                    current_task_type,
-                ),
+                value=txt_download_path,
                 visible=True,
                 interactive=True,
             )
@@ -674,14 +708,16 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
             txt_btn_update = dl_btn_hidden_update
 
         try:
+            srt_download_path = _prepare_temp_downloadable_file(
+                first_success["raw_result"],
+                "srt",
+                first_success["audio_original_stem"],
+                output_base_dir,
+                current_task_type,
+            )
+            _add_generated_file(generated_files, srt_download_path)
             srt_btn_update = gr.update(
-                value=_prepare_temp_downloadable_file(
-                    first_success["raw_result"],
-                    "srt",
-                    first_success["audio_original_stem"],
-                    output_base_dir,
-                    current_task_type,
-                ),
+                value=srt_download_path,
                 visible=True,
                 interactive=True,
             )
@@ -691,6 +727,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
 
         try:
             # JSON button points to the already saved pipeline JSON
+            _add_generated_file(generated_files, first_success["json_file_path"])
             json_btn_update = gr.update(
                 value=first_success["json_file_path"],
                 visible=True,
@@ -736,6 +773,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                 visible=True,
                 interactive=True,
             )
+            _add_generated_file(generated_files, single_all_zip_path)
             logger.info(
                 "Prepared single file downloads and ALL_ZIP=%s", single_all_zip_path
             )
@@ -832,6 +870,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                 visible=True,
                 interactive=True,
             )
+            _add_generated_file(generated_files, all_zip_path)
             logger.info(
                 "Prepared ALL ZIP: %s, Files: %s", all_zip_path, len(successful_results)
             )
@@ -876,6 +915,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                     visible=True,
                     interactive=True,
                 )
+                _add_generated_file(generated_files, txt_zip_path)
                 logger.info(
                     "Prepared TXT ZIP: %s, Files: %s",
                     txt_zip_path,
@@ -920,6 +960,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                     visible=True,
                     interactive=True,
                 )
+                _add_generated_file(generated_files, srt_zip_path)
                 logger.info(
                     "Prepared SRT ZIP: %s, Files: %s",
                     srt_zip_path,
@@ -967,6 +1008,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                     visible=True,
                     interactive=True,
                 )
+                _add_generated_file(generated_files, json_zip_path)
                 logger.info(
                     "Prepared JSON ZIP: %s, Files: %s",
                     json_zip_path,
@@ -1008,10 +1050,16 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
         type(raw_result_state_val).__name__,
     )
 
+    generated_files_update = (
+        gr.update(value=_build_generated_files_text(generated_files), visible=True)
+        if generated_files
+        else generated_files_hidden_update
+    )
+
     return (
         transcription_output_val,
         json_output_val,
-        None,
+        generated_files_update,
         zip_btn_update,
         txt_btn_update,
         srt_btn_update,

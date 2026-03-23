@@ -259,6 +259,40 @@ ALASS_TIMEOUT_SECONDS = _env_int("ALASS_TIMEOUT_SECONDS", 180)
 ALASS_SPLIT_PENALTY = _env_int("ALASS_SPLIT_PENALTY", 7)
 ALASS_NO_SPLITS = _env_flag("ALASS_NO_SPLITS", default=False)
 
+# WebUI defaults tuned for subtitle generation workflows.
+_webui_timestamp_type = _env_text("WEBUI_TIMESTAMP_TYPE", "word") or "word"
+if _webui_timestamp_type not in {"chunk", "word"}:
+    _webui_timestamp_type = "word"
+WEBUI_DEFAULT_TIMESTAMP_TYPE: Literal["chunk", "word"] = cast(
+    Literal["chunk", "word"], _webui_timestamp_type
+)
+_webui_task = _env_text("WEBUI_TASK", "transcribe") or "transcribe"
+if _webui_task not in {"transcribe", "translate"}:
+    _webui_task = "transcribe"
+WEBUI_DEFAULT_TASK: Literal["transcribe", "translate"] = cast(
+    Literal["transcribe", "translate"],
+    _webui_task,
+)
+WEBUI_DEFAULT_STABILIZE = _env_flag("WEBUI_STABILIZE_DEFAULT", default=True)
+WEBUI_DEFAULT_DEMUCS = _env_flag("WEBUI_DEMUCS_DEFAULT", default=False)
+WEBUI_DEFAULT_VAD = _env_flag("WEBUI_VAD_DEFAULT", default=True)
+WEBUI_DEFAULT_VAD_THRESHOLD = _env_float("WEBUI_VAD_THRESHOLD_DEFAULT", 0.35)
+WEBUI_DEFAULT_SUBTITLE_SYNC = _env_flag("WEBUI_SUBTITLE_SYNC_DEFAULT", default=True)
+WEBUI_DEFAULT_SUPPRESS_TS_TOKENS = _env_flag(
+    "WEBUI_SUPPRESS_TS_TOKENS_DEFAULT",
+    default=True,
+)
+WEBUI_DEFAULT_GAP_PADDING = (
+    _env_text("WEBUI_GAP_PADDING_DEFAULT", DEFAULT_GAP_PADDING) or DEFAULT_GAP_PADDING
+)
+WEBUI_DEFAULT_ADJUST_GAPS = _env_flag("WEBUI_ADJUST_GAPS_DEFAULT", default=True)
+_webui_nonspeech_skip_raw = (
+    _env_text("WEBUI_NONSPEECH_SKIP_DEFAULT", "") or ""
+).strip()
+WEBUI_DEFAULT_NONSPEECH_SKIP = (
+    float(_webui_nonspeech_skip_raw) if _webui_nonspeech_skip_raw else None
+)
+
 # ROCm and runtime bootstrap
 ROCM_PATH = _env_text("ROCM_PATH")
 HSA_OVERRIDE_GFX_VERSION = _env_text("HSA_OVERRIDE_GFX_VERSION")

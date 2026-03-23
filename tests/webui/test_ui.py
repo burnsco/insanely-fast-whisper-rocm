@@ -9,7 +9,12 @@ from unittest.mock import MagicMock, Mock, patch
 
 import gradio as gr
 
-from insanely_fast_whisper_rocm.utils.constant import DEFAULT_TIMESTAMP_TYPE
+from insanely_fast_whisper_rocm.utils.constant import (
+    WEBUI_DEFAULT_STABILIZE,
+    WEBUI_DEFAULT_TASK,
+    WEBUI_DEFAULT_TIMESTAMP_TYPE,
+    WEBUI_DEFAULT_VAD,
+)
 from insanely_fast_whisper_rocm.webui.ui import (
     _create_file_handling_ui,
     _create_model_config_ui,
@@ -196,9 +201,10 @@ class TestCreateTaskConfigUI:
             timestamp_type, language, task = _create_task_config_ui()
 
             assert isinstance(timestamp_type, gr.Radio)
-            assert timestamp_type.value == DEFAULT_TIMESTAMP_TYPE
+            assert timestamp_type.value == WEBUI_DEFAULT_TIMESTAMP_TYPE
             assert isinstance(language, gr.Textbox)
             assert isinstance(task, gr.Radio)
+            assert task.value == WEBUI_DEFAULT_TASK
 
     def test_create_task_config_ui__timestamp_type_choices(self) -> None:
         """Test that timestamp_type has chunk and word choices."""
@@ -400,6 +406,24 @@ class TestCreateUIComponents:
         )
 
         assert isinstance(demo, gr.Blocks)
+
+    def test_create_ui_components__uses_subtitle_friendly_defaults(self) -> None:
+        """Test that the WebUI defaults favor subtitle generation."""
+        demo = create_ui_components()
+
+        component_values = {
+            component.label: component.value
+            for component in demo.blocks.values()
+            if hasattr(component, "label") and hasattr(component, "value")
+        }
+
+        assert component_values["Timestamp Type"] == WEBUI_DEFAULT_TIMESTAMP_TYPE
+        assert component_values["Task"] == WEBUI_DEFAULT_TASK
+        assert (
+            component_values["Enable word-level stabilization (--stabilize)"]
+            is WEBUI_DEFAULT_STABILIZE
+        )
+        assert component_values["Enable VAD (--vad)"] is WEBUI_DEFAULT_VAD
 
     def test_create_ui_components__has_correct_title(self) -> None:
         """Test that the UI has the correct title."""

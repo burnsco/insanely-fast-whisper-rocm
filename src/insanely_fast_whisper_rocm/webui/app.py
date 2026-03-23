@@ -12,16 +12,16 @@ import click
 
 from insanely_fast_whisper_rocm.utils import constant as constants
 from insanely_fast_whisper_rocm.utils.constant import (
-    DEFAULT_ADJUST_GAPS,
-    DEFAULT_DEMUCS,
-    DEFAULT_GAP_PADDING,
     DEFAULT_MODEL,
-    DEFAULT_NONSPEECH_SKIP,
-    DEFAULT_STABILIZE,
-    DEFAULT_SUBTITLE_SYNC,
-    DEFAULT_SUPPRESS_TS_TOKENS,
-    DEFAULT_VAD,
-    DEFAULT_VAD_THRESHOLD,
+    WEBUI_DEFAULT_ADJUST_GAPS,
+    WEBUI_DEFAULT_DEMUCS,
+    WEBUI_DEFAULT_GAP_PADDING,
+    WEBUI_DEFAULT_NONSPEECH_SKIP,
+    WEBUI_DEFAULT_STABILIZE,
+    WEBUI_DEFAULT_SUBTITLE_SYNC,
+    WEBUI_DEFAULT_SUPPRESS_TS_TOKENS,
+    WEBUI_DEFAULT_VAD,
+    WEBUI_DEFAULT_VAD_THRESHOLD,
 )
 from insanely_fast_whisper_rocm.utils.download_hf_model import download_model_if_needed
 from insanely_fast_whisper_rocm.utils.hf_cache import ensure_local_hf_cache_env
@@ -60,23 +60,23 @@ logger = logging.getLogger("insanely_fast_whisper_rocm.webui.app")
 )
 @click.option(
     "--vad-threshold",
-    default=DEFAULT_VAD_THRESHOLD,
+    default=WEBUI_DEFAULT_VAD_THRESHOLD,
     type=float,
     help="Voice Activity Detection threshold (0-1) used when --vad is enabled.",
 )
 @click.option(
     "--vad/--no-vad",
-    default=DEFAULT_VAD,
+    default=WEBUI_DEFAULT_VAD,
     help="Enable voice activity detection when stabilizing timestamps.",
 )
 @click.option(
     "--demucs/--no-demucs",
-    default=DEFAULT_DEMUCS,
+    default=WEBUI_DEFAULT_DEMUCS,
     help="Use Demucs for noise reduction when stabilizing timestamps.",
 )
 @click.option(
     "--stabilize/--no-stabilize",
-    default=DEFAULT_STABILIZE,
+    default=WEBUI_DEFAULT_STABILIZE,
     help="Enable word-level timestamp stabilization.",
 )
 @click.option(
@@ -124,12 +124,12 @@ def launch_webui(
         default_stabilize=stabilize,
         default_demucs=demucs,
         default_vad=vad,
-        default_subtitle_sync=DEFAULT_SUBTITLE_SYNC,
+        default_subtitle_sync=WEBUI_DEFAULT_SUBTITLE_SYNC,
         default_vad_threshold=vad_threshold,
-        default_suppress_ts_tokens=DEFAULT_SUPPRESS_TS_TOKENS,
-        default_gap_padding=DEFAULT_GAP_PADDING,
-        default_adjust_gaps=DEFAULT_ADJUST_GAPS,
-        default_nonspeech_skip=DEFAULT_NONSPEECH_SKIP,
+        default_suppress_ts_tokens=WEBUI_DEFAULT_SUPPRESS_TS_TOKENS,
+        default_gap_padding=WEBUI_DEFAULT_GAP_PADDING,
+        default_adjust_gaps=WEBUI_DEFAULT_ADJUST_GAPS,
+        default_nonspeech_skip=WEBUI_DEFAULT_NONSPEECH_SKIP,
     )
 
     # Launch the interface

@@ -10,20 +10,25 @@ from typing import Literal
 import gradio as gr
 
 from insanely_fast_whisper_rocm.utils.constant import (
-    DEFAULT_ADJUST_GAPS,
     DEFAULT_BATCH_SIZE,
     DEFAULT_DEVICE,
-    DEFAULT_GAP_PADDING,
     DEFAULT_LANGUAGE,
     DEFAULT_MODEL,
-    DEFAULT_NONSPEECH_SKIP,
-    DEFAULT_SUBTITLE_SYNC,
-    DEFAULT_SUPPRESS_TS_TOKENS,
-    DEFAULT_TIMESTAMP_TYPE,
     DEFAULT_TRANSCRIPTS_DIR,
     MAX_BATCH_SIZE,
     MIN_BATCH_SIZE,
     SUPPORTED_UPLOAD_FORMATS,
+    WEBUI_DEFAULT_ADJUST_GAPS,
+    WEBUI_DEFAULT_DEMUCS,
+    WEBUI_DEFAULT_GAP_PADDING,
+    WEBUI_DEFAULT_NONSPEECH_SKIP,
+    WEBUI_DEFAULT_STABILIZE,
+    WEBUI_DEFAULT_SUBTITLE_SYNC,
+    WEBUI_DEFAULT_SUPPRESS_TS_TOKENS,
+    WEBUI_DEFAULT_TASK,
+    WEBUI_DEFAULT_TIMESTAMP_TYPE,
+    WEBUI_DEFAULT_VAD,
+    WEBUI_DEFAULT_VAD_THRESHOLD,
 )
 from insanely_fast_whisper_rocm.webui.handlers import process_transcription_request
 from insanely_fast_whisper_rocm.webui.models import (
@@ -124,15 +129,15 @@ def _toggle_stabilization_advanced(enabled: bool) -> dict[str, object]:
 
 def _create_stabilization_ui(
     *,
-    default_stabilize: bool = False,
-    default_demucs: bool = False,
-    default_vad: bool = False,
-    default_vad_threshold: float = 0.35,
-    default_subtitle_sync: bool = DEFAULT_SUBTITLE_SYNC,
-    default_suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS,
-    default_gap_padding: str = DEFAULT_GAP_PADDING,
-    default_adjust_gaps: bool = DEFAULT_ADJUST_GAPS,
-    default_nonspeech_skip: float | None = DEFAULT_NONSPEECH_SKIP,
+    default_stabilize: bool = WEBUI_DEFAULT_STABILIZE,
+    default_demucs: bool = WEBUI_DEFAULT_DEMUCS,
+    default_vad: bool = WEBUI_DEFAULT_VAD,
+    default_vad_threshold: float = WEBUI_DEFAULT_VAD_THRESHOLD,
+    default_subtitle_sync: bool = WEBUI_DEFAULT_SUBTITLE_SYNC,
+    default_suppress_ts_tokens: bool = WEBUI_DEFAULT_SUPPRESS_TS_TOKENS,
+    default_gap_padding: str = WEBUI_DEFAULT_GAP_PADDING,
+    default_adjust_gaps: bool = WEBUI_DEFAULT_ADJUST_GAPS,
+    default_nonspeech_skip: float | None = WEBUI_DEFAULT_NONSPEECH_SKIP,
 ) -> tuple[
     gr.Checkbox,
     gr.Checkbox,
@@ -223,7 +228,10 @@ def _create_stabilization_ui(
     )
 
 
-def _create_task_config_ui() -> tuple[gr.Radio, gr.Textbox, gr.Radio]:
+def _create_task_config_ui(
+    default_timestamp_type: TimestampType = WEBUI_DEFAULT_TIMESTAMP_TYPE,
+    default_task: TaskType = WEBUI_DEFAULT_TASK,
+) -> tuple[gr.Radio, gr.Textbox, gr.Radio]:
     """Helper function to create task configuration UI components.
 
     Returns:
@@ -234,7 +242,7 @@ def _create_task_config_ui() -> tuple[gr.Radio, gr.Textbox, gr.Radio]:
         timestamp_type = gr.Radio(
             choices=["chunk", "word"],
             label="Timestamp Type",
-            value=DEFAULT_TIMESTAMP_TYPE,
+            value=default_timestamp_type,
             info=(
                 "For movie/TV subtitle timing, 'word' works best with "
                 "stabilization enabled."
@@ -248,7 +256,7 @@ def _create_task_config_ui() -> tuple[gr.Radio, gr.Textbox, gr.Radio]:
         task = gr.Radio(
             choices=["transcribe", "translate"],
             label="Task",
-            value="transcribe",
+            value=default_task,
         )
     return timestamp_type, language, task
 
@@ -300,7 +308,7 @@ def _process_transcription_request_wrapper(
 
     Returns:
         tuple: The outputs expected by the Gradio click handler (text,
-        JSON, state, and download button updates).
+        JSON, generated files, and download button updates).
     """
     if progress is None:
         progress = gr.Progress()
@@ -340,15 +348,15 @@ def _process_transcription_request_wrapper(
 def create_ui_components(
     *,
     default_model: str = DEFAULT_MODEL,
-    default_stabilize: bool = False,
-    default_demucs: bool = False,
-    default_vad: bool = False,
-    default_vad_threshold: float = 0.35,
-    default_subtitle_sync: bool = DEFAULT_SUBTITLE_SYNC,
-    default_suppress_ts_tokens: bool = DEFAULT_SUPPRESS_TS_TOKENS,
-    default_gap_padding: str = DEFAULT_GAP_PADDING,
-    default_adjust_gaps: bool = DEFAULT_ADJUST_GAPS,
-    default_nonspeech_skip: float | None = DEFAULT_NONSPEECH_SKIP,
+    default_stabilize: bool = WEBUI_DEFAULT_STABILIZE,
+    default_demucs: bool = WEBUI_DEFAULT_DEMUCS,
+    default_vad: bool = WEBUI_DEFAULT_VAD,
+    default_vad_threshold: float = WEBUI_DEFAULT_VAD_THRESHOLD,
+    default_subtitle_sync: bool = WEBUI_DEFAULT_SUBTITLE_SYNC,
+    default_suppress_ts_tokens: bool = WEBUI_DEFAULT_SUPPRESS_TS_TOKENS,
+    default_gap_padding: str = WEBUI_DEFAULT_GAP_PADDING,
+    default_adjust_gaps: bool = WEBUI_DEFAULT_ADJUST_GAPS,
+    default_nonspeech_skip: float | None = WEBUI_DEFAULT_NONSPEECH_SKIP,
 ) -> gr.Blocks:  # pylint: disable=too-many-locals
     """Create and return Gradio UI components with all parameters.
 
@@ -403,7 +411,10 @@ def create_ui_components(
                 )
 
                 # Task configuration
-                timestamp_type, language, task = _create_task_config_ui()
+                timestamp_type, language, task = _create_task_config_ui(
+                    default_timestamp_type=WEBUI_DEFAULT_TIMESTAMP_TYPE,
+                    default_task=WEBUI_DEFAULT_TASK,
+                )
 
                 # File handling
                 save_transcriptions, temp_uploads_dir = _create_file_handling_ui()
@@ -424,7 +435,12 @@ def create_ui_components(
                             label="Raw JSON Output / Detailed Results", visible=True
                         )
 
-                raw_result_state = gr.State()
+                generated_files = gr.Textbox(
+                    label="Generated Files",
+                    lines=6,
+                    visible=False,
+                    interactive=False,
+                )
 
                 with gr.Row():
                     download_txt_btn = gr.DownloadButton(
@@ -474,7 +490,7 @@ def create_ui_components(
             outputs=[
                 transcription_output,
                 json_output,
-                raw_result_state,
+                generated_files,
                 download_zip_btn,
                 download_txt_btn,
                 download_srt_btn,
