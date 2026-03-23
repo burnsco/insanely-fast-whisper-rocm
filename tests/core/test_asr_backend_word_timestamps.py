@@ -99,9 +99,9 @@ def test_disables_chunk_length_for_word_timestamps(
         return_timestamps_value="word",
     )
 
-    # CRITICAL ASSERTION: chunk_length_s should be None when word timestamps requested
-    assert captured_kwargs.get("chunk_length_s") is None, (
-        "chunk_length_s must be None for word-level timestamps to avoid Transformers bug"
+    # CRITICAL ASSERTION: chunk_length_s should be preserved when word timestamps requested
+    assert captured_kwargs.get("chunk_length_s") == 30, (
+        "chunk_length_s must be preserved for word-level timestamps so Transformers applies stride"
     )
 
     # Verify return_timestamps is set to "word"

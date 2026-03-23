@@ -102,3 +102,7 @@ pdm.lock.bak
 
 # PR comments
 pr-27-comments.md
+
+# Ignore generated JSON files
+transcripts/*.json
+custom_output/*.json

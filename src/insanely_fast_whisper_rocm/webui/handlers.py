@@ -184,6 +184,29 @@ def transcribe(
 
         _ensure_not_cancelled()
 
+        if config.vad:
+            from insanely_fast_whisper_rocm.audio.vad import mute_non_speech
+
+            logger.info("Applying VAD Pre-Muting to prevent silence hallucinations...")
+            if progress_tracker_instance is not None:
+                progress_tracker_instance(
+                    base_progress,
+                    desc=(
+                        f"Running VAD to mute non-speech regions "
+                        f"({original_file_name_for_desc})"
+                    ),
+                )
+
+            try:
+                muted_path = mute_non_speech(audio_file_path, config.vad_threshold)
+                if muted_path != audio_file_path:
+                    temp_files.append(muted_path)
+                    audio_file_path = muted_path
+            except Exception as e:
+                logger.warning("VAD muting failed: %s", e)
+
+        _ensure_not_cancelled()
+
         # Build backend config and use the orchestrator for transcription
         backend_config = HuggingFaceBackendConfig(
             model_name=config.model,
@@ -696,6 +719,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                 first_success["audio_original_stem"],
                 output_base_dir,
                 current_task_type,
+                timestamp_type=transcription_config.timestamp_type,
             )
             _add_generated_file(generated_files, txt_download_path)
             txt_btn_update = gr.update(
@@ -714,6 +738,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                 first_success["audio_original_stem"],
                 output_base_dir,
                 current_task_type,
+                timestamp_type=transcription_config.timestamp_type,
             )
             _add_generated_file(generated_files, srt_download_path)
             srt_btn_update = gr.update(
@@ -764,7 +789,9 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
 
             single_zip_builder.create(filename=zip_filename)
             single_zip_builder.add_batch_files(
-                data_for_builder, formats=["txt", "srt", "json"]
+                data_for_builder,
+                formats=["txt", "srt", "json"],
+                timestamp_type=transcription_config.timestamp_type,
             )
             single_all_zip_path, _ = single_zip_builder.build()
 
@@ -861,6 +888,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                     for res in successful_results
                 },
                 formats=["txt", "srt", "json"],
+                timestamp_type=transcription_config.timestamp_type,
             )
 
             all_zip_path, _ = all_zip_builder.build()  # build() adds summary
@@ -907,6 +935,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                         for res in successful_results
                     },
                     formats=["txt"],
+                    timestamp_type=transcription_config.timestamp_type,
                 )
 
                 txt_zip_path, _ = txt_zip_builder.build()  # build() adds summary
@@ -952,6 +981,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                         for res in successful_results
                     },
                     formats=["srt"],
+                    timestamp_type=transcription_config.timestamp_type,
                 )
 
                 srt_zip_path, _ = srt_zip_builder.build()  # build() adds summary
@@ -1000,6 +1030,7 @@ def process_transcription_request(  # pylint: disable=too-many-locals, too-many-
                         for res in successful_results
                     },
                     formats=["json"],
+                    timestamp_type=transcription_config.timestamp_type,
                 )
 
                 json_zip_path, _ = json_zip_builder.build()  # build() adds summary

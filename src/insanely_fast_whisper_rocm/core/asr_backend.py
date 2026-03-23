@@ -444,18 +444,10 @@ class HuggingFaceBackend(ASRBackend):  # pylint: disable=too-few-public-methods
         warnings.filterwarnings("ignore", category=FutureWarning, module="transformers")
         hf_logging.set_verbosity_error()
 
-        # When the outer pipeline manually chunks audio, disable internal
-        # chunking for word-level timestamps to avoid compounding the split
-        # strategy and reintroducing the same-timestamp bug. In sequential
-        # long-form mode, keep internal chunking enabled so Whisper can use its
-        # native long-form algorithm on the full file.
+        # Internal chunking uses a stride strategy that properly aligns overlapping
+        # segments and deduplicates text. Retain the model's preferred chunk_length
+        # for robust alignment across the larger outer chunks.
         chunk_length_value = self.config.chunk_length
-        if _return_timestamps_value == "word" and not self.config.sequential_long_form:
-            chunk_length_value = None
-            logger.debug(
-                "Disabling chunk_length_s for word-level timestamps to avoid "
-                "Transformers internal chunking conflict during manual chunking"
-            )
 
         generate_kwargs: dict[str, Any] = {
             "no_repeat_ngram_size": 3,

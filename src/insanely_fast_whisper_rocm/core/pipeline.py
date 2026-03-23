@@ -455,20 +455,20 @@ class WhisperPipeline(BasePipeline):
                 "Sequential long-form mode enabled; skipping manual audio splitting"
             )
         else:
-            # Split the audio into chunks so we can provide deterministic
-            # progress updates to observers (e.g. Gradio's progress bar).
-            # ``split_audio`` returns a list with the original path if chunking
-            # is unnecessary.
+            # Split the audio into macro chunks (e.g., 10 minutes) so we can provide
+            # deterministic progress updates to observers while keeping sufficient
+            # context. ``split_audio`` returns a list with the original path if
+            # chunking is unnecessary.
             chunk_data = audio_processing.split_audio(
                 converted_path,
-                chunk_duration=float(self.asr_backend.config.chunk_length),
+                chunk_duration=constants.AUDIO_CHUNK_DURATION,
                 chunk_overlap=0.0,
             )
         total_chunks = len(chunk_data)
         logger.debug(
             "Audio split into %d chunks (chunk_duration=%.1fs)",
             total_chunks,
-            self.asr_backend.config.chunk_length,
+            constants.AUDIO_CHUNK_DURATION,
         )
         # Store tuples of (result, start_time) for the merge step
         chunk_results: list[tuple[dict[str, Any], float]] = []

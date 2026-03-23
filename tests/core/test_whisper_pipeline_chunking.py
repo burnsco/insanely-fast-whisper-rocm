@@ -242,7 +242,7 @@ def test_whisper_pipeline_merges_chunks_and_reports_progress(
         min_chunk_duration: float = 1.0,
     ) -> list[tuple[str, float]]:
         assert audio_path == "converted.wav"
-        assert chunk_duration == 3.0
+        assert chunk_duration == 600.0
         assert chunk_overlap == 0.0
         assert min_chunk_duration == 1.0
         return [("chunk_01.wav", 0.0), ("chunk_02.wav", 3.5)]
@@ -345,7 +345,7 @@ def test_whisper_pipeline_word_timestamps_passthrough(
         chunk_overlap: float,
         min_chunk_duration: float = 1.0,
     ) -> list[tuple[str, float]]:
-        assert chunk_duration == 15.0
+        assert chunk_duration == 600.0
         assert chunk_overlap == 0.0
         assert min_chunk_duration == 1.0
         return [(path, 0.0)]
@@ -419,7 +419,7 @@ def test_whisper_pipeline_accepts_bool_true_as_chunk_timestamps(
         chunk_overlap: float,
         min_chunk_duration: float = 1.0,
     ) -> list[tuple[str, float]]:
-        assert chunk_duration == 15.0
+        assert chunk_duration == 600.0
         assert chunk_overlap == 0.0
         assert min_chunk_duration == 1.0
         return [(path, 0.0)]

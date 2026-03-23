@@ -242,7 +242,7 @@ SOFT_BOUNDARY_WORDS = _env_csv("SOFT_BOUNDARY_WORDS", "and,but,or,so,for,nor,yet
 INTERJECTION_WHITELIST = _env_csv("INTERJECTION_WHITELIST", "um,uh,ah,er,like")
 
 # Timestamp stabilization
-DEFAULT_STABILIZE = _env_flag("STABILIZE_DEFAULT", default=False)
+DEFAULT_STABILIZE = _env_flag("STABILIZE_DEFAULT", default=True)
 DEFAULT_DEMUCS = _env_flag("DEMUCS_DEFAULT", default=False)
 DEFAULT_VAD = _env_flag("VAD_DEFAULT", default=False)
 DEFAULT_VAD_THRESHOLD = _env_float("VAD_THRESHOLD_DEFAULT", 0.35)

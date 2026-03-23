@@ -24,6 +24,7 @@ def prepare_temp_downloadable_file(
     original_audio_stem: str,
     temp_dir: Path,
     task: TaskType,
+    timestamp_type: object | None = None,
 ) -> str:
     """Generate and persist a temporary downloadable file for the WebUI.
 
@@ -33,6 +34,7 @@ def prepare_temp_downloadable_file(
         original_audio_stem: Stem of the original audio file.
         temp_dir: Directory where the temporary export should be written.
         task: Task used for filename generation.
+        timestamp_type: Optional timestamp mode hint forwarded to the formatter.
 
     Returns:
         Absolute path to the generated temporary file.
@@ -52,7 +54,7 @@ def prepare_temp_downloadable_file(
     ):
         content = raw_data["srt_synced_text"]
     else:
-        content = formatter.format(raw_data)
+        content = formatter.format(raw_data, timestamp_type=timestamp_type)
     filename = _filename_generator.create_filename(
         audio_path=original_audio_stem,
         task=task,

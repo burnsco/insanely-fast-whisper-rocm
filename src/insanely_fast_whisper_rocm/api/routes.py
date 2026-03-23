@@ -187,6 +187,17 @@ def _process_audio_request(
         except RuntimeError as conv_error:
             raise HTTPException(status_code=500, detail=str(conv_error)) from conv_error
 
+    if vad:
+        from insanely_fast_whisper_rocm.audio.vad import mute_non_speech
+
+        try:
+            muted_path = mute_non_speech(processed_audio_path, vad_threshold)
+            if muted_path != processed_audio_path:
+                temp_files_to_cleanup.append(muted_path)
+                processed_audio_path = muted_path
+        except Exception as e:
+            logger.warning("VAD muting failed: %s", e)
+
     try:
         parsed_timestamp_type = _parse_timestamp_type(timestamp_type)
         orchestrator = create_orchestrator()

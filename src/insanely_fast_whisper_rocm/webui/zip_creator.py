@@ -131,13 +131,17 @@ class BatchZipBuilder:
             raise
 
     def add_batch_files(
-        self, file_results: dict[str, dict[str, Any]], formats: list[str]
+        self,
+        file_results: dict[str, dict[str, Any]],
+        formats: list[str],
+        timestamp_type: object | None = None,
     ) -> "BatchZipBuilder":
         """Add batch transcription files to the archive.
 
         Args:
             file_results: Dictionary of ``file_path -> transcription_result``.
             formats: List of formats to include.
+            timestamp_type: Optional timestamp mode hint forwarded to formatters.
 
         Returns:
             BatchZipBuilder: Self for method chaining.
@@ -153,11 +157,11 @@ class BatchZipBuilder:
 
         try:
             if self.config.organize_by_format:
-                self._add_files_by_format(file_results, formats)
+                self._add_files_by_format(file_results, formats, timestamp_type)
             elif self.config.organize_by_file:
-                self._add_files_by_source(file_results, formats)
+                self._add_files_by_source(file_results, formats, timestamp_type)
             else:
-                self._add_files_flat(file_results, formats)
+                self._add_files_flat(file_results, formats, timestamp_type)
 
             logger.info(
                 "Added %d batch files in %d formats", len(file_results), len(formats)
@@ -362,7 +366,10 @@ class BatchZipBuilder:
             self._is_open = False
 
     def _add_files_by_format(
-        self, file_results: dict[str, dict[str, Any]], formats: list[str]
+        self,
+        file_results: dict[str, dict[str, Any]],
+        formats: list[str],
+        timestamp_type: object | None = None,
     ) -> None:
         """Add files organized by format (formats/txt/, formats/srt/, etc.)."""
         assert self._zipfile is not None, "ZIP file not initialized"
@@ -397,7 +404,7 @@ class BatchZipBuilder:
                     len(segments) if isinstance(segments, list) else None,
                 )
 
-                content = self._format_result(result_data, format_type)
+                content = self._format_result(result_data, format_type, timestamp_type)
 
                 # Log content snippet or length for brevity
                 content_log = content[:200] + "..." if len(content) > 200 else content
@@ -436,7 +443,10 @@ class BatchZipBuilder:
                 self._track_addition(archive_path, len(content.encode("utf-8")))
 
     def _add_files_by_source(
-        self, file_results: dict[str, dict[str, Any]], formats: list[str]
+        self,
+        file_results: dict[str, dict[str, Any]],
+        formats: list[str],
+        timestamp_type: object | None = None,
     ) -> None:
         """Add files organized by source file (files/audio1/, files/audio2/, etc.)."""
         assert self._zipfile is not None, "ZIP file not initialized"
@@ -446,7 +456,9 @@ class BatchZipBuilder:
 
             for format_type in formats:
                 try:
-                    content = self._format_result(result_data, format_type)
+                    content = self._format_result(
+                        result_data, format_type, timestamp_type
+                    )
                     extension = FORMATTERS[format_type].get_file_extension()
 
                     archive_path = f"files/{source_folder}/{source_folder}.{extension}"
@@ -469,7 +481,10 @@ class BatchZipBuilder:
                     )
 
     def _add_files_flat(
-        self, file_results: dict[str, dict[str, Any]], formats: list[str]
+        self,
+        file_results: dict[str, dict[str, Any]],
+        formats: list[str],
+        timestamp_type: object | None = None,
     ) -> None:
         """Add files in flat structure (no subfolders)."""
         assert self._zipfile is not None, "ZIP file not initialized"
@@ -508,7 +523,7 @@ class BatchZipBuilder:
                     len(segments) if isinstance(segments, list) else None,
                 )
 
-                content = self._format_result(result_data, format_type)
+                content = self._format_result(result_data, format_type, timestamp_type)
 
                 # Log content snippet or length for brevity
                 content_log = content[:200] + "..." if len(content) > 200 else content
@@ -651,12 +666,18 @@ class BatchZipBuilder:
         }
         return json.dumps(batch_data, indent=2, ensure_ascii=False)
 
-    def _format_result(self, result_data: dict[str, Any], format_type: str) -> str:
+    def _format_result(
+        self,
+        result_data: dict[str, Any],
+        format_type: str,
+        timestamp_type: object | None = None,
+    ) -> str:
         """Format transcription result data.
 
         Args:
             result_data: Raw transcription result data.
             format_type: One of "txt", "srt", or "json".
+            timestamp_type: Optional timestamp mode hint forwarded to formatters.
 
         Returns:
             str: The formatted content.
@@ -673,7 +694,7 @@ class BatchZipBuilder:
         formatter = FORMATTERS.get(format_type)
         if not formatter:
             raise ValueError(f"Unknown format: {format_type}")
-        return formatter.format(result_data)
+        return formatter.format(result_data, timestamp_type=timestamp_type)
 
     def _get_base_filename(self, file_path: str) -> str:
         """Get base filename from path with safe Unicode normalization.
